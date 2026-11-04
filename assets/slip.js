@@ -260,12 +260,12 @@
   }
 
   /* professional tax a month by state code, for monthly gross pay g (last checked 4 Nov 2026; null = not in this table, type it yourself) */
-  var NOPT = { '07': 1, '09': 1, '06': 1, '08': 1, '02': 1, '05': 1, '04': 1, '12': 1 };
+  var NOPT = { '07': 1, '09': 1, '06': 1, '08': 1, '02': 1, '05': 1, '04': 1, '12': 1, '21': 1 };   /* Odisha repealed PT from 1 Apr 2026 */
   function ptFor(st, g, mon) {
     if (NOPT[st]) return 0;
     switch (st) {
       case '27': return g <= 7500 ? 0 : g <= 10000 ? 175 : mon === 2 ? 300 : 200;             /* Maharashtra (men; women up to 25,000 pay none) */
-      case '29': return g >= 25000 ? 200 : 0;                                                    /* Karnataka */
+      case '29': return g >= 25000 ? (mon === 2 ? 300 : 200) : 0;                                /* Karnataka (₹300 in February since 1 Apr 2025) */
       case '19': return g <= 10000 ? 0 : g <= 15000 ? 110 : g <= 25000 ? 130 : g <= 40000 ? 150 : 200; /* West Bengal */
       case '24': return g >= 12000 ? 200 : 0;                                                    /* Gujarat */
       case '36': case '37': return g <= 15000 ? 0 : g <= 20000 ? 150 : 200;                      /* Telangana, Andhra Pradesh */
