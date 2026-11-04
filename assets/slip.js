@@ -8,12 +8,14 @@
 
   /* prefix = number series; paper = default paper; papers = allowed sizes; copy = Original / Office copy labels */
   var TYPES = {
-    receipt: { prefix: 'RCT', title: 'PAYMENT RECEIPT', kinds: ['pay', 'adv'], paper: 'a5', papers: ['a4', 'a5', 'th80', 'th58'], copy: true, party: 'party' },
+    receipt: { prefix: 'RCT', title: 'PAYMENT RECEIPT', kinds: ['pay', 'adv', 'ref'], paper: 'a5', papers: ['a4', 'a5', 'th80', 'th58'], copy: true, party: 'party' },
     voucher: { prefix: 'PV', title: 'PAYMENT VOUCHER', paper: 'a5', papers: ['a4', 'a5'], party: 'party', buying: true },
     rent: { prefix: 'RR', title: 'RENT RECEIPT', paper: 'a4', papers: ['a4'] },
     salary: { prefix: 'SAL', title: 'SALARY SLIP', paper: 'a4', papers: ['a4', 'a5'] },
     petty: { prefix: 'PCB', title: 'PETTY CASH BOOK', paper: 'a4', papers: ['a4'] }
   };
+  /* TDS sections under the Income-tax Act, 2025 (in force 1 Apr 2026), with the old 1961 section people know; suggestions only, the user types the final text */
+  var TDSSEC = ['393 (old 194C) contractors', '393 (old 194J) professional or technical fees', '393 (old 194I) rent', '393 (old 194H) commission or brokerage', '393 (old 194Q) purchase of goods'];
   var MODES = ['cash', 'upi', 'cheque', 'bank', 'card', 'dd', 'other'];
   var HEADS = ['Office expenses', 'Travel and conveyance', 'Freight and cartage', 'Repairs and maintenance', 'Printing and stationery', 'Postage and courier', 'Tea and refreshments',
     'Staff welfare', 'Electricity', 'Telephone and internet', 'Rent', 'Salary and wages', 'Advance to staff', 'Purchase', 'Cleaning', 'Fuel', 'Miscellaneous'];
@@ -29,6 +31,10 @@
     days: 'Days in month', paid: 'Paid days', lop: 'Loss of pay days', earn: 'Earnings', ded: 'Deductions', gross: 'Gross earnings', tded: 'Total deductions', net: 'Net pay', empsign: 'Employee’s signature',
     slipnote: 'This salary slip is generated from the employer’s records.',
     opening: 'Opening balance', recd: 'Received', paid2: 'Paid', bal: 'Balance', closing: 'Closing balance', heads: 'Spent by head', cashier: 'Cashier', vn: 'V. No.', from: 'From', to: 'To',
+    rvt: 'RECEIPT VOUCHER', rft: 'REFUND VOUCHER', rfto: 'Refunded to', rvref: 'against receipt voucher', pos: 'Place of supply', sac: 'SAC', taxable: 'Taxable value', cgst: 'CGST', sgst: 'SGST', igst: 'IGST', taxtot: 'Total',
+    advgst: 'Receipt voucher under section 31(3)(d) of the CGST Act for an advance received for services. The GST on it is adjusted in the tax invoice.',
+    refnote: 'Refund voucher under section 31(3)(e) of the CGST Act: the advance received is refunded because no supply was made.',
+    tdsl: 'TDS', on: 'on', netpaid: 'Net amount paid', ppan: 'PAN', rcmnote: 'Payment voucher under section 31(3)(g) of the CGST Act. GST on this supply is payable by us on reverse charge:', regime: 'Income tax regime', rnew: 'New', rold: 'Old',
     cash: 'cash', upi: 'UPI', cheque: 'cheque', bank2: 'bank transfer (NEFT/RTGS/IMPS)', card: 'card', dd: 'demand draft', other: 'other means'
   };
   var MODEP = { cash: 'cash', upi: 'upi', cheque: 'cheque', bank: 'bank2', card: 'card', dd: 'dd', other: 'other' };
@@ -47,12 +53,12 @@
     var d = {
       type: type, kind: T.kinds ? T.kinds[0] : '', no: '', date: NS.today(), paper: c.paper || T.paper, design: 'classic', accent: c.accent || inv.accent || ACCENTS[0], copies: 1, copyLabel: T.copy ? 'orig' : '',
       seller: { name: '', addr: '', city: '', pin: '', state: '', gstin: '', phone: '', email: '', pan: '', logo: '', sign: '', bankName: '', bankAcc: '', bankIfsc: '', bankBranch: '', upi: '' },
-      buyer: { name: '', addr: '', phone: '', gstin: '' }, notes: c.notes || '', status: ''
+      buyer: { name: '', addr: '', phone: '', gstin: '', pan: '' }, notes: c.notes || '', status: ''
     };
-    if (type === 'receipt') Object.assign(d, { amount: '', tds: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
-    if (type === 'voucher') Object.assign(d, { lines: [{ desc: '', head: '', amt: '' }], mode: 'cash', ref: '', refDate: '', prep: '', appr: '' });
+    if (type === 'receipt') Object.assign(d, { gstAdv: false, rate: '18', pos: '', sac: '', rv: '', rvDate: '', amount: '', tds: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
+    if (type === 'voucher') Object.assign(d, { tdsSec: '', tdsRate: '', rcm: false, rcmRate: '18', lines: [{ desc: '', head: '', amt: '' }], mode: 'cash', ref: '', refDate: '', prep: '', appr: '' });
     if (type === 'rent') Object.assign(d, { pan: '', prop: '', rent: '', from: m, to: m, mode: 'cash', ref: '', day: 'last' });
-    if (type === 'salary') Object.assign(d, { month: m, emp: { code: '', desig: '', dept: '', doj: '', pan: '', uan: '', esi: '', bankName: '', bankAcc: '', bankIfsc: '' }, days: '', paid: '',
+    if (type === 'salary') Object.assign(d, { regime: 'new', ptState: '', month: m, emp: { code: '', desig: '', dept: '', doj: '', pan: '', uan: '', esi: '', bankName: '', bankAcc: '', bankIfsc: '' }, days: '', paid: '',
       earn: EARN.map(function (x) { return { desc: x, amt: '' }; }), ded: DED.map(function (x) { return { desc: x, amt: '' }; }) });
     if (type === 'petty') Object.assign(d, { from: NS.today().slice(0, 8) + '01', to: NS.today(), opening: '', lines: [{ date: NS.today(), vno: '', desc: '', head: '', recd: '', paid: '' }], cashier: '', appr: '' });
     return d;
@@ -61,8 +67,20 @@
   /* ---------- sums ---------- */
   function sums(d) {
     var o = { total: 0 };
-    if (type === 'receipt') o.total = r2(num(d.amount));
-    if (type === 'voucher') o.total = r2(d.lines.reduce(function (a, l) { return a + num(l.amt); }, 0));
+    if (type === 'receipt') {
+      o.total = r2(num(d.amount));
+      /* an advance for services carries GST inside the amount received; so does its refund */
+      if (d.gstAdv && d.kind !== 'pay') {
+        var rt = num(d.rate); o.tax = r2(o.total * rt / (100 + rt)); o.taxable = r2(o.total - o.tax);
+        o.intra = !d.pos || !d.seller.state || d.pos === d.seller.state;
+        if (o.intra) { o.cgst = r2(o.tax / 2); o.sgst = r2(o.tax - o.cgst); } else o.igst = o.tax;
+      }
+    }
+    if (type === 'voucher') {
+      o.total = r2(d.lines.reduce(function (a, l) { return a + num(l.amt); }, 0));
+      o.tds = r2(o.total * num(d.tdsRate) / 100); o.net = r2(o.total - o.tds);
+      o.rcm = d.rcm ? r2(o.total * num(d.rcmRate) / 100) : 0;
+    }
     if (type === 'rent') { o.months = months(d.from, d.to); o.total = r2(num(d.rent) * o.months.length); }
     if (type === 'salary') { o.gross = r2(d.earn.reduce(function (a, l) { return a + num(l.amt); }, 0)); o.ded = r2(d.ded.reduce(function (a, l) { return a + num(l.amt); }, 0)); o.total = r2(o.gross - o.ded); }
     if (type === 'petty') {
@@ -88,13 +106,19 @@
     return '<div class="f' + (o.wide ? ' wide' : '') + '"><label for="' + id + '">' + esc(label) + '</label>' + input + hint + '<small class="err" id="' + id + '-err" hidden></small></div>';
   }
   function card(legend, inner) { return '<fieldset class="card"><legend>' + esc(legend) + '</legend>' + inner + '</fieldset>'; }
+  function stateOpts(first) { return [['', first]].concat(NS.STATES.map(function (x) { return [x[0], x[1] + ' (' + x[0] + ')']; })); }
+  function chk(id, label, hint, forKinds) {
+    return '<div class="f wide"' + (forKinds ? ' data-for="' + forKinds + '"' : '') + '><label class="chk"><input id="' + id + '" type="checkbox"> ' + esc(label) + '</label>' + (hint ? '<small class="hint">' + esc(hint) + '</small>' : '') + '</div>';
+  }
+  function only(kinds, html) { return html.replace(/^<div class="f/, '<div data-for="' + kinds + '" class="f'); }
   function modeOpts() { return MODES.map(function (m) { return [m, t('pm.' + m)]; }); }
   function bizCard(lg) {
     return card(lg || t('lg.biz'), '<div class="fg">' +
       field('s-name', t(type === 'rent' ? 's.lname' : 'l.bname'), { ph: t(type === 'rent' ? 's.ph.lname' : 'ph.bname'), wide: true, hint: type === 'rent' ? '' : t('h.bname') }) +
       field('s-addr', t('l.addr'), { type: 'textarea', wide: true, ph: t('ph.addr') }) +
       (type === 'rent' ? field('s-pan', t('s.lpan'), { max: 10, ltr: 1, hint: t('s.h.lpan') }) + field('s-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 })
-        : field('s-gstin', t('l.gstin'), { ph: t('ph.gstin'), max: 15, ltr: 1 }) + field('s-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 })) +
+        : field('s-gstin', t('l.gstin'), { ph: t('ph.gstin'), max: 15, ltr: 1 }) + field('s-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) +
+          (type === 'receipt' || type === 'voucher' ? field('s-state', t('l.state'), { type: 'select', opts: stateOpts(t('choose.state')) }) : '')) +
       '</div>' + (type === 'rent' ? '' : '<details class="more"><summary>' + esc(t('s.logo')) + '</summary><div class="fg">' +
         '<div class="f"><label for="s-logo">' + esc(t('l.logo')) + '</label><input id="s-logo" type="file" accept="image/*"><button type="button" class="link" data-clear="logo" hidden>' + esc(t('rm.logo')) + '</button></div>' +
         '<div class="f"><label for="s-sign">' + esc(t('l.sign')) + '</label><input id="s-sign" type="file" accept="image/*"><button type="button" class="link" data-clear="sign" hidden>' + esc(t('rm.sign')) + '</button></div>' +
@@ -155,11 +179,16 @@
         card(t('s.lg.from'), '<div class="fg">' + field('b-name', t('s.fromname'), { wide: true, ph: t('ph.cname'), hint: t('h.cname') }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) +
           field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-gstin', t('l.cgstin'), { max: 15, ltr: 1 }) + '</div>') +
         card(t('s.lg.pay'), '<div class="fg">' + field('d-amount', t('s.amount'), { mode: 'decimal', ltr: 1, wide: true }) + payFields() +
-          field('d-against', t('s.against'), { hint: t('s.h.against') }) + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) + '</div>');
+          field('d-against', t('s.against'), { hint: t('s.h.against') }) + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) +
+          only('ref', field('d-rv', t('s.rv'), { ltr: 1, hint: t('s.h.rv') })) + only('ref', field('d-rvDate', t('s.rvdate'), { type: 'date' })) +
+          chk('d-gstAdv', t('s.gstadv'), t('s.h.gstadv'), 'adv ref') + only('adv ref', field('d-rate', t('l.gst'), { mode: 'decimal', ltr: 1, list: 'dl-rates' })) +
+          only('adv ref', field('d-pos', t('l.pos'), { type: 'select', opts: stateOpts(t('s.samestate')) })) + only('adv ref', field('d-sac', t('s.sacf'), { ltr: 1, max: 8, mode: 'numeric' })) + '</div>');
     } else if (type === 'voucher') {
       h += bizCard() + numCard(payFields()) +
         card(t('s.lg.to'), '<div class="fg">' + field('b-name', t('s.toname'), { wide: true, ph: t('s.ph.toname'), hint: t('h.vname') }) + field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) + '</div>') +
         card(t('s.lg.lines'), '<div data-lines="lines"></div><div class="sums" id="ed-sums" aria-live="polite"></div>') +
+        card(t('s.lg.tdsrcm'), '<div class="fg">' + field('d-tdsSec', t('s.tdssec'), { list: 'dl-tds', hint: t('s.h.tdssec') }) + field('d-tdsRate', t('s.tdsrate'), { mode: 'decimal', ltr: 1 }) +
+          field('b-pan', t('s.ppan'), { max: 10, ltr: 1, hint: t('s.h.ppan') }) + chk('d-rcm', t('s.rcm'), t('s.h.rcm')) + field('d-rcmRate', t('s.rcmrate'), { mode: 'decimal', ltr: 1, list: 'dl-rates' }) + '</div>') +
         card(t('s.lg.sign'), '<div class="fg">' + field('d-prep', t('s.prep')) + field('d-appr', t('s.appr')) + '</div>');
     } else if (type === 'rent') {
       h += bizCard(t('s.lg.landlord')) +
@@ -172,15 +201,17 @@
         card(t('s.lg.emp'), '<div class="fg">' + field('b-name', t('s.ename'), { wide: true, hint: t('s.h.ename') }) + field('e-code', t('s.code'), { ltr: 1 }) + field('e-desig', t('s.desig')) + field('e-dept', t('s.dept')) + field('e-doj', t('s.doj'), { type: 'date' }) +
           field('e-pan', t('s.pan'), { max: 10, ltr: 1 }) + field('e-uan', t('s.uan'), { max: 12, mode: 'numeric', ltr: 1 }) + field('e-esi', t('s.esi'), { ltr: 1 }) +
           field('e-bankName', t('l.bank')) + field('e-bankAcc', t('l.acc'), { mode: 'numeric', ltr: 1 }) + field('e-bankIfsc', t('l.ifsc'), { max: 11, ltr: 1 }) + '</div>') +
-        card(t('s.lg.att'), '<div class="fg">' + field('d-days', t('s.days'), { mode: 'numeric', ltr: 1 }) + field('d-paid', t('s.paiddays'), { mode: 'decimal', ltr: 1, hint: t('s.h.paid') }) + '</div>') +
+        card(t('s.lg.att'), '<div class="fg">' + field('d-days', t('s.days'), { mode: 'numeric', ltr: 1 }) + field('d-paid', t('s.paiddays'), { mode: 'decimal', ltr: 1, hint: t('s.h.paid') }) +
+          field('d-regime', t('s.regime'), { type: 'select', opts: [['new', t('s.r.new')], ['old', t('s.r.old')]] }) + field('d-ptState', t('s.ptstate'), { type: 'select', opts: stateOpts(t('s.pt.none')) }) + '</div>') +
         card(t('s.lg.earn'), '<div data-lines="earn"></div>') +
-        card(t('s.lg.ded'), '<div data-lines="ded"></div><button type="button" class="btn sm" data-pf>' + esc(t('s.pfbtn')) + '</button><small class="hint">' + esc(t('s.h.pf')) + '</small><div class="sums" id="ed-sums" aria-live="polite"></div>');
+        card(t('s.lg.ded'), '<div data-lines="ded"></div><button type="button" class="btn sm" data-pf>' + esc(t('s.pfbtn2')) + '</button><small class="hint">' + esc(t('s.h.pf2')) + '</small><div class="sums" id="ed-sums" aria-live="polite"></div>');
     } else if (type === 'petty') {
       h += bizCard() + numCard(field('d-from', t('s.pfrom'), { type: 'date' }) + field('d-to', t('s.pto'), { type: 'date' }) + field('d-opening', t('s.opening'), { mode: 'decimal', ltr: 1, hint: t('s.h.opening') })) +
         card(t('s.lg.entries'), '<div data-lines="lines"></div><div class="sums" id="ed-sums" aria-live="polite"></div>') +
         card(t('s.lg.sign'), '<div class="fg">' + field('d-cashier', t('s.cashier')) + field('d-appr', t('s.appr')) + '</div>');
     }
-    h += lookCard() + '<datalist id="dl-heads">' + HEADS.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>';
+    h += lookCard() + '<datalist id="dl-rates">' + [5, 18, 40, 12, 28, 3, 1.5, 0.25, 0.1].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
+      '<datalist id="dl-tds">' + TDSSEC.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' + '<datalist id="dl-heads">' + HEADS.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>';
     ed.innerHTML = h;
     $$('[data-accent]', ed).forEach(function (b) { b.addEventListener('click', function () { doc.accent = b.getAttribute('data-accent'); fillForm(true); draw(); saveDraft(); }); });
     ['logo', 'sign'].forEach(function (k) {
@@ -220,26 +251,61 @@
     var set = function (re, v) { var l = doc.ded.filter(function (x) { return re.test(x.desc); })[0]; if (l) l.amt = v ? String(v) : ''; };
     set(/PF|provident/i, Math.round(Math.min(basic, 25000) * 0.12));
     set(/ESI/i, gross && gross <= 21000 ? Math.ceil(gross * 0.0075) : 0);
+    var mon = +String(doc.month || '').slice(5, 7), pt = doc.ptState ? ptFor(doc.ptState, gross, mon) : 0;
+    if (pt == null) NS.toast(t('s.pt.manual'));
+    else set(/professional/i, pt);
+    var pf = Math.round(Math.min(basic, 25000) * 0.12), ptm = pt || num((doc.ded.filter(function (x) { return /professional/i.test(x.desc); })[0] || {}).amt);
+    set(/TDS|income tax/i, tdsMonth(gross, doc.regime, pf, ptm));
     renderLines(); draw(); saveDraft();
   }
 
-  var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan' };
-  var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin' };
+  /* professional tax a month by state code, for monthly gross pay g (last checked 4 Nov 2026; null = not in this table, type it yourself) */
+  var NOPT = { '07': 1, '09': 1, '06': 1, '08': 1, '02': 1, '05': 1, '04': 1, '12': 1 };
+  function ptFor(st, g, mon) {
+    if (NOPT[st]) return 0;
+    switch (st) {
+      case '27': return g <= 7500 ? 0 : g <= 10000 ? 175 : mon === 2 ? 300 : 200;             /* Maharashtra (men; women up to 25,000 pay none) */
+      case '29': return g >= 25000 ? 200 : 0;                                                    /* Karnataka */
+      case '19': return g <= 10000 ? 0 : g <= 15000 ? 110 : g <= 25000 ? 130 : g <= 40000 ? 150 : 200; /* West Bengal */
+      case '24': return g >= 12000 ? 200 : 0;                                                    /* Gujarat */
+      case '36': case '37': return g <= 15000 ? 0 : g <= 20000 ? 150 : 200;                      /* Telangana, Andhra Pradesh */
+      case '18': return g <= 15000 ? 0 : g <= 25000 ? 180 : 208;                                  /* Assam */
+    }
+    return null;
+  }
+  /* TDS on salary for one month: yearly tax on (monthly gross x 12), FY 2026-27 slabs, 4% cess; no surcharge (pay above ₹50 lakh needs your accountant) */
+  function slabTax(x, slabs) { var tax = 0, prev = 0; slabs.forEach(function (s) { if (x > prev) tax += (Math.min(x, s[0]) - prev) * s[1]; prev = s[0]; }); return tax; }
+  function tdsMonth(gross, regime, pf, pt) {
+    var y = gross * 12, tax;
+    if (regime === 'old') {
+      var ti = Math.max(0, y - 50000 - pt * 12 - Math.min(pf * 12, 150000));
+      tax = slabTax(ti, [[250000, 0], [500000, 0.05], [1000000, 0.2], [Infinity, 0.3]]);
+      if (ti <= 500000) tax = 0;
+    } else {
+      var tn = Math.max(0, y - 75000);
+      tax = slabTax(tn, [[400000, 0], [800000, 0.05], [1200000, 0.1], [1600000, 0.15], [2000000, 0.2], [2400000, 0.25], [Infinity, 0.3]]);
+      if (tn <= 1200000) tax = 0; else tax = Math.min(tax, tn - 1200000);   /* rebate up to ₹12 lakh, with marginal relief just above it */
+    }
+    return Math.round(tax * 1.04 / 12);
+  }
+  var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan', 's-state': 'state' };
+  var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin', 'b-pan': 'pan' };
   var EMAP = { 'e-code': 'code', 'e-desig': 'desig', 'e-dept': 'dept', 'e-doj': 'doj', 'e-pan': 'pan', 'e-uan': 'uan', 'e-esi': 'esi', 'e-bankName': 'bankName', 'e-bankAcc': 'bankAcc', 'e-bankIfsc': 'bankIfsc' };
-  var DKEYS = ['kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper'];
+  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper'];
   function fillForm(onlyLook) {
     var ed = $('#ed', root);
     if (!onlyLook) {
       Object.keys(SMAP).forEach(function (id) { var e = $('#' + id, ed); if (e) e.value = doc.seller[SMAP[id]] || ''; });
       Object.keys(BMAP).forEach(function (id) { var e = $('#' + id, ed); if (e) e.value = doc.buyer[BMAP[id]] || ''; });
       Object.keys(EMAP).forEach(function (id) { var e = $('#' + id, ed); if (e) e.value = (doc.emp || {})[EMAP[id]] || ''; });
-      DKEYS.forEach(function (k) { var e = $('#d-' + k, ed); if (e) e.value = doc[k] == null ? '' : doc[k]; });
+      DKEYS.forEach(function (k) { var e = $('#d-' + k, ed); if (!e) return; if (e.type === 'checkbox') e.checked = !!doc[k]; else e.value = doc[k] == null ? '' : doc[k]; });
       renderLines();
       ['s-gstin', 'b-gstin'].forEach(function (id) { if ($('#' + id, ed)) checkGstin(id); });
     }
     $$('[data-accent]', ed).forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-accent') === doc.accent)); });
     ['logo', 'sign'].forEach(function (k) { var b = $('[data-clear="' + k + '"]', ed); if (b) b.hidden = !doc.seller[k]; });
     var kh = $('#kind-hint', ed); if (kh) kh.textContent = t('kh.' + doc.kind);
+    $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac') && !doc.gstAdv); });
   }
   function checkGstin(id) {
     var inp = $('#' + id, root), err = $('#' + id + '-err', root), r = NS.gstinCheck(inp.value);
@@ -251,11 +317,12 @@
     if (SMAP[id]) doc.seller[SMAP[id]] = id === 's-pan' ? el.value.toUpperCase() : el.value;
     else if (BMAP[id]) doc.buyer[BMAP[id]] = el.value;
     else if (EMAP[id]) { doc.emp[EMAP[id]] = /pan|Ifsc/.test(id) ? el.value.toUpperCase() : el.value; }
-    else if (dk && DKEYS.indexOf(dk) >= 0) doc[dk] = dk === 'copies' ? +el.value : el.value;
+    else if (dk && DKEYS.indexOf(dk) >= 0) doc[dk] = el.type === 'checkbox' ? el.checked : dk === 'copies' ? +el.value : el.value;
     else if (el.getAttribute('data-k')) { var row = el.closest('.ln-row'), list = row.parentNode.getAttribute('data-list'); doc[list][+row.getAttribute('data-i')][el.getAttribute('data-k')] = el.value; }
     else return;
     if (id === 's-gstin' || id === 'b-gstin') { el.value = el.value.toUpperCase(); (id[0] === 's' ? doc.seller : doc.buyer).gstin = el.value; checkGstin(id); }
-    if (id === 'd-kind') fillForm(true);
+    if (id === 'd-kind' || id === 'd-gstAdv') fillForm(true);
+    if (id === 'b-pan') el.value = el.value.toUpperCase();
     if ((id === 'd-date' || id === 'd-month') && e.type === 'change') suggestNumber(false);
     draw(); saveDraft();
   }
@@ -313,23 +380,29 @@
       '<p class="nt1">' + P.recfrom + ' ' + name + ' ' + payLine(d) + (d.against ? ', ' + P.against + ' ' + esc(d.against) : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
       '<table class="kv tot"><tr class="grand"><th>' + P.amount + '</th><td>' + NS.money(o.total) + '</td></tr>' + (num(d.tds) ? '<tr><th>' + P.tds + '</th><td>' + NS.money(num(d.tds)) + '</td></tr>' : '') + (num(d.balance) ? '<tr><th>' + P.balance + '</th><td>' + NS.money(num(d.balance)) + '</td></tr>' : '') + '</table>' +
       '<p class="words">' + NS.inWords(o.total) + '</p>' + (d.kind === 'adv' ? '<p class="nt1">' + P.advnote + '</p>' : '') + (d.notes ? '<p class="nt1">' + esc(d.notes) + '</p>' : '') + made() + '</div>';
-    return sheetOpen(d) + head(d, T.title, label ? P[label] : '') +
-      meta([[P.rno, '<span class="mono">' + esc(d.no) + '</span>'], [P.date, NS.fmtDate(d.date)]]) +
-      '<p class="rtext">' + P.recfrom + ' ' + name + (d.buyer.addr ? ', ' + esc(d.buyer.addr).replace(/\n/g, ', ') : '') + (d.buyer.gstin ? ' (GSTIN <span class="mono">' + esc(d.buyer.gstin) + '</span>)' : '') +
-        ' ' + P.sum + ' <b>' + NS.inWords(o.total) + '</b> ' + payLine(d) + (d.against ? ', ' + P.against + ' <b>' + esc(d.against) + '</b>' : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
-      '<div class="rrow"><div class="amtbox">' + NS.money(o.total) + '</div>' + (num(d.tds) ? '<p class="small">' + P.tds + ': <b>' + NS.money(num(d.tds)) + '</b><br>' + P.billamt + ': <b>' + NS.money(o.total + num(d.tds)) + '</b></p>' : '') + (num(d.balance) ? '<p class="small">' + P.balance + ': <b>' + NS.money(num(d.balance)) + '</b></p>' : '') + '</div>' +
-      (d.kind === 'adv' ? '<p class="small">' + P.advnote + '</p>' : '') + (d.notes ? '<p class="small">' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
+    var ttl = d.kind === 'ref' ? P.rft : d.kind === 'adv' && d.gstAdv ? P.rvt : T.title, gstAdv = d.gstAdv && d.kind !== 'pay';
+    var taxTbl = gstAdv ? '<table class="sum"><thead><tr><th>' + P.sac + '</th><th class="n">' + P.taxable + '</th><th class="n">' + 'GST' + '</th>' + (o.intra ? '<th class="n">' + P.cgst + '</th><th class="n">' + P.sgst + '</th>' : '<th class="n">' + P.igst + '</th>') + '<th class="n">' + P.taxtot + '</th></tr></thead><tbody><tr><td class="mono">' + esc(d.sac) + '</td><td class="n">' + NS.money(o.taxable, false) + '</td><td class="n">' + num(d.rate) + '%</td>' +
+      (o.intra ? '<td class="n">' + NS.money(o.cgst, false) + '</td><td class="n">' + NS.money(o.sgst, false) + '</td>' : '<td class="n">' + NS.money(o.igst, false) + '</td>') + '<td class="n">' + NS.money(o.total, false) + '</td></tr></tbody></table>' : '';
+    var posCode = d.pos || s.state;
+    return sheetOpen(d) + head(d, ttl, label ? P[label] : '') +
+      meta([[d.kind === 'ref' ? P.vno : P.rno, '<span class="mono">' + esc(d.no) + '</span>'], [P.date, NS.fmtDate(d.date)], [P.pos, gstAdv && posCode ? esc(NS.stateName(posCode)) + ' (' + posCode + ')' : '']]) +
+      '<p class="rtext">' + (d.kind === 'ref' ? P.rfto : P.recfrom) + ' ' + name + (d.buyer.addr ? ', ' + esc(d.buyer.addr).replace(/\n/g, ', ') : '') + (d.buyer.gstin ? ' (GSTIN <span class="mono">' + esc(d.buyer.gstin) + '</span>)' : '') +
+        ' ' + P.sum + ' <b>' + NS.inWords(o.total) + '</b> ' + payLine(d) + (d.kind === 'ref' && d.rv ? ', ' + P.rvref + ' <b class="mono">' + esc(d.rv) + '</b>' + (d.rvDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.rvDate) : '') : '') + (d.against ? ', ' + P.against + ' <b>' + esc(d.against) + '</b>' : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
+      taxTbl + '<div class="rrow"><div class="amtbox">' + NS.money(o.total) + '</div>' + (num(d.tds) ? '<p class="small">' + P.tds + ': <b>' + NS.money(num(d.tds)) + '</b><br>' + P.billamt + ': <b>' + NS.money(o.total + num(d.tds)) + '</b></p>' : '') + (num(d.balance) ? '<p class="small">' + P.balance + ': <b>' + NS.money(num(d.balance)) + '</b></p>' : '') + '</div>' +
+      (d.kind === 'adv' ? '<p class="small">' + (gstAdv ? P.advgst : P.advnote) + '</p>' : d.kind === 'ref' ? '<p class="small">' + P.refnote + '</p>' : '') + (d.notes ? '<p class="small">' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
       '<div class="signs">' + stampBox(d.mode === 'cash' && o.total > 5000) + signbox(P['for'] + ' <b>' + esc(s.name || '') + '</b>', P.recby, s.sign) + '</div>' + made() + '</div>';
   }
   function voucherHtml(d) {
     var o = sums(d), s = d.seller, rows = d.lines.filter(function (l) { return l.desc || num(l.amt); });
     return sheetOpen(d) + head(d, T.title) +
       meta([[P.vno, '<span class="mono">' + esc(d.no) + '</span>'], [P.date, NS.fmtDate(d.date)], [P.mode, (P[MODEP[d.mode]] || '').replace(/^./, function (c) { return c.toUpperCase(); })], [P.ref, esc(d.ref) + (d.refDate ? ' · ' + NS.fmtDate(d.refDate) : '')]]) +
-      '<div class="parties"><div class="pt"><h4>' + P.paidto + '</h4>' + (d.buyer.name ? '<b>' + esc(d.buyer.name) + '</b>' : '<p class="ph">Name of the person or firm paid</p>') + (d.buyer.addr ? '<p>' + esc(d.buyer.addr).replace(/\n/g, '<br>') + '</p>' : '') + (d.buyer.phone ? '<p>' + P.ph + ': ' + esc(d.buyer.phone) + '</p>' : '') + '</div></div>' +
+      '<div class="parties"><div class="pt"><h4>' + P.paidto + '</h4>' + (d.buyer.name ? '<b>' + esc(d.buyer.name) + '</b>' : '<p class="ph">Name of the person or firm paid</p>') + (d.buyer.addr ? '<p>' + esc(d.buyer.addr).replace(/\n/g, '<br>') + '</p>' : '') + (d.buyer.phone ? '<p>' + P.ph + ': ' + esc(d.buyer.phone) + '</p>' : '') + (d.buyer.pan ? '<p>' + P.ppan + ': <b class="mono">' + esc(d.buyer.pan) + '</b></p>' : '') + '</div></div>' +
       '<table class="lines"><thead><tr><th>#</th><th class="l">' + P.part + '</th><th class="l">' + P.head + '</th><th class="n">' + P.amount + '</th></tr></thead><tbody>' +
       (rows.length ? rows.map(function (l, i) { return '<tr><td>' + (i + 1) + '</td><td class="l">' + esc(l.desc) + '</td><td class="l">' + esc(l.head) + '</td><td class="n">' + NS.money(num(l.amt), false) + '</td></tr>'; }).join('') : '<tr><td colspan="4" class="ph">What was paid for</td></tr>') +
-      '</tbody><tfoot><tr><th colspan="3" class="l">' + P.total + '</th><th class="n">' + NS.money(o.total) + '</th></tr></tfoot></table>' +
-      '<p class="words"><span>' + P.words + ':</span> <b>' + NS.inWords(o.total) + '</b></p>' + (d.notes ? '<p class="small">' + P.narr + ': ' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
+      '</tbody><tfoot><tr><th colspan="3" class="l">' + P.total + '</th><th class="n">' + NS.money(o.total) + '</th></tr>' +
+        (o.tds ? '<tr><th colspan="3" class="l">' + P.tdsl + (d.tdsSec ? ' u/s ' + esc(d.tdsSec) : '') + ' @ ' + num(d.tdsRate) + '% ' + P.on + ' ' + NS.money(o.total) + '</th><th class="n">− ' + NS.money(o.tds) + '</th></tr><tr><th colspan="3" class="l">' + P.netpaid + '</th><th class="n">' + NS.money(o.net) + '</th></tr>' : '') + '</tfoot></table>' +
+      '<p class="words"><span>' + P.words + ':</span> <b>' + NS.inWords(o.net) + '</b></p>' +
+      (o.rcm ? '<p class="small">' + P.rcmnote + ' <b>' + NS.money(o.rcm) + '</b> (' + num(d.rcmRate) + '% ' + P.on + ' ' + NS.money(o.total) + ').</p>' : '') + (d.notes ? '<p class="small">' + P.narr + ': ' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
       '<div class="signs three">' + signbox('', P.prep + (d.prep ? ': ' + esc(d.prep) : '')) + signbox('', P.appr + (d.appr ? ': ' + esc(d.appr) : ''), s.sign) +
         '<div class="signbox">' + stampBox(d.mode === 'cash' && o.total > 5000) + '<div class="sp"></div><p>' + P.rsign + '</p></div></div>' + made() + '</div>';
   }
@@ -385,7 +458,9 @@
     var st = $('#ns-page') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'ns-page' }));
     st.textContent = '@media print{@page{' + ({ a5: 'size:A5;margin:0', th80: 'size:80mm 297mm;margin:0', th58: 'size:58mm 297mm;margin:0' }[d.paper] || 'size:A4;margin:0') + '}}';
     var es = $('#ed-sums', root);
-    if (es) es.innerHTML = type === 'salary' ? '<span>' + esc(t('s.sum.gross', { v: NS.money(o.gross) })) + '</span><span>' + esc(t('s.sum.ded', { v: NS.money(o.ded) })) + '</span><b>' + esc(t('s.sum.net', { v: NS.money(o.total) })) + '</b>'
+    if (es) es.innerHTML = type === 'salary' ? '<span>' + esc(t('s.sum.gross', { v: NS.money(o.gross) })) + '</span><span>' + esc(t('s.sum.ded', { v: NS.money(o.ded) })) + '</span><b>' + esc(t('s.sum.net', { v: NS.money(o.total) })) + '</b>' +
+        (o.gross && num((d.earn[0] || {}).amt) < o.gross / 2 ? '<span class="warn">' + esc(t('s.w.wages')) + '</span>' : '')
+      : type === 'voucher' ? '<b>' + esc(t('sum.total', { v: NS.money(o.total) })) + '</b>' + (o.tds ? '<span>' + esc(t('s.sum.net2', { v: NS.money(o.net) })) + '</span>' : '') + (o.rcm ? '<span>' + esc(t('s.sum.rcm', { v: NS.money(o.rcm) })) + '</span>' : '')
       : type === 'petty' ? '<span>' + esc(t('s.sum.recd', { v: NS.money(o.recd) })) + '</span><span>' + esc(t('s.sum.paid', { v: NS.money(o.paid) })) + '</span><b>' + esc(t('s.sum.close', { v: NS.money(o.closing) })) + '</b>'
       : type === 'rent' ? '<span>' + esc(t('s.sum.months', { n: o.months.length })) + '</span><b>' + esc(t('sum.total', { v: NS.money(o.total) })) + '</b>' + (rentPanWarn() ? '<span class="warn">' + esc(t('s.w.pan')) + '</span>' : '')
       : '<b>' + esc(t('sum.total', { v: NS.money(o.total) })) + '</b>';
@@ -422,6 +497,7 @@
     if (!doc.seller.name.trim()) p.push(['s-name', t(type === 'rent' ? 's.v.lname' : 'v.bname')]);
     if ((type === 'rent' || type === 'salary') && !doc.buyer.name.trim()) p.push(['b-name', t(type === 'rent' ? 's.v.tname' : 's.v.ename')]);
     if (type === 'receipt' && !(o.total > 0)) p.push(['d-amount', t('s.v.amount')]);
+    if (type === 'receipt' && doc.kind === 'ref' && !String(doc.rv || '').trim()) p.push(['d-rv', t('s.v.rv')]);
     if (type === 'rent' && !(num(doc.rent) > 0)) p.push(['d-rent', t('s.v.rent')]);
     if (type === 'voucher' && !(o.total > 0)) p.push(['lines-amt-0', t('s.v.amount')]);
     if (type === 'salary' && !(o.gross > 0)) p.push(['earn-amt-0', t('s.v.earn')]);
@@ -443,6 +519,7 @@
     var tot = sums(doc).total;
     if (doc.mode === 'cash' && type === 'receipt' && tot >= 200000 && !confirm(t('c.cash2l'))) return Promise.reject(new Error('cancel'));
     if (doc.mode === 'cash' && type === 'voucher' && tot > 10000 && !confirm(t('c.cash10k'))) return Promise.reject(new Error('cancel'));
+    if (type === 'voucher' && num(doc.tdsRate) > 0 && !String(doc.buyer.pan || '').trim() && !confirm(t('c.nopan'))) return Promise.reject(new Error('cancel'));
     return NSStore.list('doc').then(function (all) {
       var dup = all.filter(function (d) { return d.id !== editingId && d.type === type && key(d.no) === key(doc.no) && NS.fy(d.date) === NS.fy(doc.date) && key(d.seller && d.seller.name) === key(doc.seller.name); })[0];
       if (dup && !confirm(tw('c.qdup', { no: doc.no }))) throw new Error('cancel');

@@ -290,7 +290,29 @@
     'v.naddr': 'For a buyer without GSTIN, type their address and state.',
     'c.cn30': 'This credit note is dated after 30 November following the end of that invoice’s financial year. After that date the GST on it can no longer be reduced (the note is still valid as a business document). Save anyway?',
     's.tds': 'TDS deducted by the payer (₹)', 's.h.tds': 'Only if the payer cut TDS. The receipt shows the TDS and the full bill amount settled.',
-    'c.cash10k': 'A cash payment above ₹10,000 to one person in a day is not allowed as a business expense under income-tax law (₹35,000 for transporters). Save anyway?'
+    'c.cash10k': 'A cash payment above ₹10,000 to one person in a day is not allowed as a business expense under income-tax law (₹35,000 for transporters). Save anyway?',
+
+    /* Phase 1 additions: self invoice, receipt and refund vouchers, voucher TDS and reverse charge, salary TDS and professional tax */
+    'doc.self': 'self invoice', 'docs.self': 'self invoices', 'Doc.self': 'Self invoice', 'k.self': 'Self invoice', 'nav.self': 'Self invoice', 'f.self': 'Self invoice maker (reverse charge)',
+    'hub.self': 'Self invoice for purchases from unregistered suppliers under reverse charge',
+    'lg.supplier': 'Supplier (unregistered)', 'l.recv': 'Goods or services received on', 'h.recv': 'A self invoice must be made within 30 days of this date.',
+    'qs.siopen': 'Tax not paid yet', 'qs.sipaid': 'Tax paid',
+    'v.sigst': 'A self invoice needs your GSTIN: only a registered buyer issues one.', 'v.recv': 'Type the date the goods or services were received.',
+    'c.si30': 'This self invoice is dated more than 30 days after the goods or services were received. The rules ask for it within 30 days. Save anyway?',
+    'k.ref': 'Refund of an advance', 'kh.ref': 'Money from an advance returned because nothing was supplied. GST rules call this a refund voucher.',
+    's.gstadv': 'GST is included in this advance (services)', 's.h.gstadv': 'Tick for an advance received for services: the receipt then becomes a receipt voucher showing the GST in it. No GST is charged on advances for goods.',
+    's.samestate': 'Same as my state', 's.sacf': 'SAC code', 's.rv': 'Receipt voucher number', 's.h.rv': 'The receipt voucher you gave when the advance came in.', 's.rvdate': 'Receipt voucher date',
+    's.v.rv': 'Type the receipt voucher number this refund is for.',
+    's.lg.tdsrcm': 'TDS and reverse charge', 's.tdssec': 'TDS section', 's.h.tdssec': 'Pick or type the section, for example 393 (old 194C). Ask your accountant if unsure.', 's.tdsrate': 'TDS rate %',
+    's.ppan': 'Payee’s PAN', 's.h.ppan': 'Needed when you deduct TDS. Without it TDS is usually 20%.',
+    's.rcm': 'GST on this payment is payable by us (reverse charge)', 's.h.rcm': 'For example a payment to an unregistered supplier or a goods transport agency under reverse charge.', 's.rcmrate': 'Reverse charge GST rate %',
+    'c.nopan': 'You are deducting TDS but the payee’s PAN is empty. Without a PAN, TDS is usually 20%. Save anyway?',
+    's.sum.net2': 'Net paid {v}', 's.sum.rcm': 'GST on reverse charge {v}',
+    's.regime': 'Employee’s income tax regime', 's.r.new': 'New regime (default)', 's.r.old': 'Old regime', 's.ptstate': 'State for professional tax', 's.pt.none': 'Choose state',
+    's.pt.manual': 'Professional tax for this state is not in our table yet. Type it on the Professional tax line.',
+    's.pfbtn2': 'Work out PF, ESI, professional tax and TDS',
+    's.h.pf2': 'PF 12% of basic (on basic up to ₹25,000); ESI 0.75% when gross is ₹21,000 or less; professional tax from the state chosen above; TDS from this month’s gross × 12 with the FY 2026-27 slabs and the standard deduction. Check them against your own rules.',
+    's.w.wages': 'Basic pay is less than half of gross. Under the labour codes the extra allowances count as wages for PF and gratuity.'
   };
 
   var packs = { en: EN }, cur = 'en';
