@@ -214,11 +214,11 @@
       });
     }, nameOf, function (d) { fill(d); fillForm(); draw(); saveDraft(); });
   }
-  /* PF 12% of basic (on at most ₹15,000 of basic), ESI 0.75% of gross when gross is ₹21,000 or less */
+  /* PF 12% of basic (on at most ₹25,000 of basic, the EPF wage ceiling since 17 Sep 2026), ESI 0.75% of gross when gross is ₹21,000 or less */
   function fillPf() {
     var basic = num((doc.earn[0] || {}).amt), gross = sums(doc).gross;
     var set = function (re, v) { var l = doc.ded.filter(function (x) { return re.test(x.desc); })[0]; if (l) l.amt = v ? String(v) : ''; };
-    set(/PF|provident/i, Math.round(Math.min(basic, 15000) * 0.12));
+    set(/PF|provident/i, Math.round(Math.min(basic, 25000) * 0.12));
     set(/ESI/i, gross && gross <= 21000 ? Math.ceil(gross * 0.0075) : 0);
     renderLines(); draw(); saveDraft();
   }

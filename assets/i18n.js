@@ -249,7 +249,7 @@
     's.desig': 'Designation', 's.dept': 'Department', 's.doj': 'Date of joining', 's.pan': 'PAN', 's.uan': 'UAN (PF number)', 's.esi': 'ESI number',
     's.lg.att': 'Attendance', 's.days': 'Days in the month', 's.paiddays': 'Paid days', 's.h.paid': 'Days worked plus paid leave and holidays. The rest prints as loss of pay.',
     's.lg.earn': 'Earnings', 's.earn1': 'Earning', 's.addearn': '+ Add earning', 's.lg.ded': 'Deductions', 's.ded1': 'Deduction', 's.addded': '+ Add deduction',
-    's.pfbtn': 'Work out PF and ESI', 's.h.pf': 'PF: 12% of basic (on basic up to ₹15,000). ESI: 0.75% when gross pay is ₹21,000 or less. Check them against your own rules.',
+    's.pfbtn': 'Work out PF and ESI', 's.h.pf': 'PF: 12% of basic (on basic up to ₹25,000). ESI: 0.75% when gross pay is ₹21,000 or less. Check them against your own rules.',
     's.pfrom': 'Book from', 's.pto': 'Book to', 's.opening': 'Opening cash (₹)', 's.h.opening': 'Cash in the box at the start. “Copy as new” carries the closing balance forward.',
     's.lg.entries': 'Entries', 's.vno': 'Voucher no.', 's.recd': 'Received (₹)', 's.paid': 'Paid (₹)', 's.addentry': '+ Add entry', 's.cashier': 'Cashier',
     's.sum.gross': 'Gross {v}', 's.sum.ded': 'Deductions {v}', 's.sum.net': 'Net pay {v}', 's.sum.recd': 'Received {v}', 's.sum.paid': 'Paid {v}', 's.sum.close': 'Closing {v}', 's.sum.months': '{n} receipts',
