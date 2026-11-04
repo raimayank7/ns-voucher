@@ -639,6 +639,12 @@
     render();
     document.addEventListener('ns-lang', render);
     NSStore.ready().then(function () { return NSStore.meta('settings').then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
+      /* ?open=<id>: the Nivesh Sahayak App opens a saved receipt or voucher here to print or share */
+      var open = new URLSearchParams(location.search).get('open');
+      if (open && !NS.leaving) {
+        history.replaceState(null, '', location.pathname + location.hash);
+        return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) { openDoc(rec, false); render(); } }).catch(function () {});
+      }
       if (dr) return;
       var seller = doc.seller; doc = blank(); doc.seller = seller;
       return (CFG.defBiz && type !== 'rent' ? NSStore.get('biz', CFG.defBiz).catch(function () {}) : Promise.resolve()).then(function (b) {
