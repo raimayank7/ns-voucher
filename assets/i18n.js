@@ -267,7 +267,23 @@
     'hub.challan': 'Delivery challan for goods sent without an invoice', 'hub.po': 'Purchase order to send to your suppliers', 'hub.note': 'Credit and debit notes for returns and price changes',
     'hub.receipt': 'Payment receipt for money received', 'hub.voucher': 'Payment voucher for money paid out', 'hub.cashmemo': 'Cash memo for counter sales, A4 or thermal roll',
     'hub.rent': 'Rent receipts for every month, for HRA', 'hub.salary': 'Salary slip with earnings, deductions and net pay', 'hub.petty': 'Petty cash book with running balance',
-    'hub.g.pre': 'Number prefix of other documents', 'hub.h.pre': 'Digits and the financial year follow the invoice numbering above. Leave a box empty for numbers without a prefix.'
+    'hub.g.pre': 'Number prefix of other documents', 'hub.h.pre': 'Digits and the financial year follow the invoice numbering above. Leave a box empty for numbers without a prefix.',
+
+    /* tax rule fixes (Tax research, 4 Nov 2026) */
+    'ei.aato': 'Your turnover', 'ei.a.none': 'Not sure / not set', 'ei.a.lt5': 'Never above ₹5 crore in any year since 2017-18', 'ei.a.5to10': 'Above ₹5 crore in some year, below ₹10 crore last year', 'ei.a.10p': '₹10 crore or more',
+    'ei.h.aato': 'Decides whether e-invoice applies to you and whether the 30-day limit applies. Remembered in this browser.',
+    'ev.hsn6': 'Item {n}: an e-invoice needs a 6- or 8-digit HSN/SAC code (4 digits are allowed only for businesses under ₹5 crore, which don\'t e-invoice).',
+    'ev.old30': 'This invoice is 30 or more days old. With turnover of ₹10 crore or more the portal no longer registers it. Ask your accountant before you issue a fresh invoice.',
+    'ev.lt5': 'E-invoice is not compulsory for you unless your turnover crossed ₹5 crore in some year since 2017-18.',
+    'ev.old180': 'The portal does not make an e-way bill for a document more than 180 days old.',
+    'ev.smallst': 'Inside {st} an e-way bill is usually needed only above ₹{v} (inter-state above ₹50,000; job work and handicrafts going to another state need one at any value).',
+    'ev.fromirn': 'If your business must issue e-invoices, the portal makes the e-way bill for this invoice only from its IRN: tick “Also make the e-way bill together with the e-invoice” and make the e-invoice file instead.',
+    'ev.tidchk': 'The transporter ID\'s last character doesn\'t match. Please check it for a typing mistake.',
+    'ei.rmnote': 'If you cancelled this IRN on the portal, this invoice number can never be registered again. Make the corrected invoice with a new number.',
+    'hub.reg': 'GST registration', 'hub.rg.regular': 'Regular GST registration', 'hub.rg.comp': 'Composition scheme', 'hub.rg.unreg': 'Not registered under GST', 'hub.rg.sez': 'SEZ unit',
+    'v.b2c': 'For a bill of ₹50,000 or more to a customer without a GSTIN, GST rules need the customer’s name, address and state.',
+    'c.r28': '28% GST was removed on 1 February 2026 (those goods are now at 40% or 18%). Save with 28% anyway?',
+    'c.cash2l': 'Taking ₹2 lakh or more in cash for one bill is not allowed under income-tax law (the penalty equals the amount). Save anyway?'
   };
 
   var packs = { en: EN }, cur = 'en';
