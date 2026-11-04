@@ -22,7 +22,7 @@
   var P = {
     no: 'No.', rno: 'Receipt No.', vno: 'Voucher No.', date: 'Date', for: 'For', sign: 'Authorised signatory', gstin: 'GSTIN', ph: 'Phone', pan: 'PAN',
     recfrom: 'Received with thanks from', sum: 'the sum of', by: 'by', dated: 'dated', drawn: 'drawn on', against: 'against', towards: 'towards', amount: 'Amount', words: 'Amount in words',
-    balance: 'Balance still due', advnote: 'Advance received. A tax invoice will be issued on supply.', recby: 'Received by', stamp: 'Revenue stamp', orig: 'Original', office: 'Office copy',
+    balance: 'Balance still due', tds: 'TDS deducted by payer', billamt: 'Bill amount settled', advnote: 'Advance received. A tax invoice will be issued on supply.', recby: 'Received by', stamp: 'Revenue stamp', orig: 'Original', office: 'Office copy',
     paidto: 'Paid to', part: 'Particulars', head: 'Account head', total: 'Total', mode: 'Mode', ref: 'Ref. / cheque no.', narr: 'Narration', prep: 'Prepared by', appr: 'Approved by', rsign: 'Receiver’s signature',
     rentof: 'towards the rent of the property at', month: 'for the month of', landlord: 'Landlord', tenant: 'Tenant', rentpm: 'Rent', period: 'Period',
     slipfor: 'Salary slip for', emp: 'Employee', code: 'Employee code', desig: 'Designation', dept: 'Department', doj: 'Date of joining', uan: 'UAN', esino: 'ESI No.', bank: 'Bank', acc: 'A/c no.', ifsc: 'IFSC',
@@ -49,7 +49,7 @@
       seller: { name: '', addr: '', city: '', pin: '', state: '', gstin: '', phone: '', email: '', pan: '', logo: '', sign: '', bankName: '', bankAcc: '', bankIfsc: '', bankBranch: '', upi: '' },
       buyer: { name: '', addr: '', phone: '', gstin: '' }, notes: c.notes || '', status: ''
     };
-    if (type === 'receipt') Object.assign(d, { amount: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
+    if (type === 'receipt') Object.assign(d, { amount: '', tds: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
     if (type === 'voucher') Object.assign(d, { lines: [{ desc: '', head: '', amt: '' }], mode: 'cash', ref: '', refDate: '', prep: '', appr: '' });
     if (type === 'rent') Object.assign(d, { pan: '', prop: '', rent: '', from: m, to: m, mode: 'cash', ref: '', day: 'last' });
     if (type === 'salary') Object.assign(d, { month: m, emp: { code: '', desig: '', dept: '', doj: '', pan: '', uan: '', esi: '', bankName: '', bankAcc: '', bankIfsc: '' }, days: '', paid: '',
@@ -155,7 +155,7 @@
         card(t('s.lg.from'), '<div class="fg">' + field('b-name', t('s.fromname'), { wide: true, ph: t('ph.cname'), hint: t('h.cname') }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) +
           field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-gstin', t('l.cgstin'), { max: 15, ltr: 1 }) + '</div>') +
         card(t('s.lg.pay'), '<div class="fg">' + field('d-amount', t('s.amount'), { mode: 'decimal', ltr: 1, wide: true }) + payFields() +
-          field('d-against', t('s.against'), { hint: t('s.h.against') }) + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) + '</div>');
+          field('d-against', t('s.against'), { hint: t('s.h.against') }) + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) + '</div>');
     } else if (type === 'voucher') {
       h += bizCard() + numCard(payFields()) +
         card(t('s.lg.to'), '<div class="fg">' + field('b-name', t('s.toname'), { wide: true, ph: t('s.ph.toname'), hint: t('h.vname') }) + field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) + '</div>') +
@@ -226,7 +226,7 @@
   var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan' };
   var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin' };
   var EMAP = { 'e-code': 'code', 'e-desig': 'desig', 'e-dept': 'dept', 'e-doj': 'doj', 'e-pan': 'pan', 'e-uan': 'uan', 'e-esi': 'esi', 'e-bankName': 'bankName', 'e-bankAcc': 'bankAcc', 'e-bankIfsc': 'bankIfsc' };
-  var DKEYS = ['kind', 'no', 'date', 'amount', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper'];
+  var DKEYS = ['kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper'];
   function fillForm(onlyLook) {
     var ed = $('#ed', root);
     if (!onlyLook) {
@@ -311,13 +311,13 @@
       '<p class="dt">' + T.title + '</p>' + (label ? '<p class="copy">' + P[label] + '</p>' : '') +
       '<table class="kv"><tr><th>' + P.rno + '</th><td class="mono">' + esc(d.no) + '</td></tr><tr><th>' + P.date + '</th><td>' + NS.fmtDate(d.date) + '</td></tr></table>' +
       '<p class="nt1">' + P.recfrom + ' ' + name + ' ' + payLine(d) + (d.against ? ', ' + P.against + ' ' + esc(d.against) : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
-      '<table class="kv tot"><tr class="grand"><th>' + P.amount + '</th><td>' + NS.money(o.total) + '</td></tr>' + (num(d.balance) ? '<tr><th>' + P.balance + '</th><td>' + NS.money(num(d.balance)) + '</td></tr>' : '') + '</table>' +
+      '<table class="kv tot"><tr class="grand"><th>' + P.amount + '</th><td>' + NS.money(o.total) + '</td></tr>' + (num(d.tds) ? '<tr><th>' + P.tds + '</th><td>' + NS.money(num(d.tds)) + '</td></tr>' : '') + (num(d.balance) ? '<tr><th>' + P.balance + '</th><td>' + NS.money(num(d.balance)) + '</td></tr>' : '') + '</table>' +
       '<p class="words">' + NS.inWords(o.total) + '</p>' + (d.kind === 'adv' ? '<p class="nt1">' + P.advnote + '</p>' : '') + (d.notes ? '<p class="nt1">' + esc(d.notes) + '</p>' : '') + made() + '</div>';
     return sheetOpen(d) + head(d, T.title, label ? P[label] : '') +
       meta([[P.rno, '<span class="mono">' + esc(d.no) + '</span>'], [P.date, NS.fmtDate(d.date)]]) +
       '<p class="rtext">' + P.recfrom + ' ' + name + (d.buyer.addr ? ', ' + esc(d.buyer.addr).replace(/\n/g, ', ') : '') + (d.buyer.gstin ? ' (GSTIN <span class="mono">' + esc(d.buyer.gstin) + '</span>)' : '') +
         ' ' + P.sum + ' <b>' + NS.inWords(o.total) + '</b> ' + payLine(d) + (d.against ? ', ' + P.against + ' <b>' + esc(d.against) + '</b>' : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
-      '<div class="rrow"><div class="amtbox">' + NS.money(o.total) + '</div>' + (num(d.balance) ? '<p class="small">' + P.balance + ': <b>' + NS.money(num(d.balance)) + '</b></p>' : '') + '</div>' +
+      '<div class="rrow"><div class="amtbox">' + NS.money(o.total) + '</div>' + (num(d.tds) ? '<p class="small">' + P.tds + ': <b>' + NS.money(num(d.tds)) + '</b><br>' + P.billamt + ': <b>' + NS.money(o.total + num(d.tds)) + '</b></p>' : '') + (num(d.balance) ? '<p class="small">' + P.balance + ': <b>' + NS.money(num(d.balance)) + '</b></p>' : '') + '</div>' +
       (d.kind === 'adv' ? '<p class="small">' + P.advnote + '</p>' : '') + (d.notes ? '<p class="small">' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
       '<div class="signs">' + stampBox(d.mode === 'cash' && o.total > 5000) + signbox(P['for'] + ' <b>' + esc(s.name || '') + '</b>', P.recby, s.sign) + '</div>' + made() + '</div>';
   }
@@ -440,6 +440,9 @@
       if (f) { var det = f.closest('details'); if (det) det.open = true; showTab('edit'); f.focus(); }
       return Promise.reject(new Error(probs[0][1]));
     }
+    var tot = sums(doc).total;
+    if (doc.mode === 'cash' && type === 'receipt' && tot >= 200000 && !confirm(t('c.cash2l'))) return Promise.reject(new Error('cancel'));
+    if (doc.mode === 'cash' && type === 'voucher' && tot > 10000 && !confirm(t('c.cash10k'))) return Promise.reject(new Error('cancel'));
     return NSStore.list('doc').then(function (all) {
       var dup = all.filter(function (d) { return d.id !== editingId && d.type === type && key(d.no) === key(doc.no) && NS.fy(d.date) === NS.fy(doc.date) && key(d.seller && d.seller.name) === key(doc.seller.name); })[0];
       if (dup && !confirm(tw('c.qdup', { no: doc.no }))) throw new Error('cancel');

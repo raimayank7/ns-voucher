@@ -283,7 +283,14 @@
     'hub.reg': 'GST registration', 'hub.rg.regular': 'Regular GST registration', 'hub.rg.comp': 'Composition scheme', 'hub.rg.unreg': 'Not registered under GST', 'hub.rg.sez': 'SEZ unit',
     'v.b2c': 'For a bill of ₹50,000 or more to a customer without a GSTIN, GST rules need the customer’s name, address and state.',
     'c.r28': '28% GST was removed on 1 February 2026 (those goods are now at 40% or 18%). Save with 28% anyway?',
-    'c.cash2l': 'Taking ₹2 lakh or more in cash for one bill is not allowed under income-tax law (the penalty equals the amount). Save anyway?'
+    'c.cash2l': 'Taking ₹2 lakh or more in cash for one bill is not allowed under income-tax law (the penalty equals the amount). Save anyway?',
+
+    /* Phase 1 rule checks (tax research, part 5) */
+    'v.orig': 'Type the number and date of the invoice this note is for. GST rules need them on the note.',
+    'v.naddr': 'For a buyer without GSTIN, type their address and state.',
+    'c.cn30': 'This credit note is dated after 30 November following the end of that invoice’s financial year. After that date the GST on it can no longer be reduced (the note is still valid as a business document). Save anyway?',
+    's.tds': 'TDS deducted by the payer (₹)', 's.h.tds': 'Only if the payer cut TDS. The receipt shows the TDS and the full bill amount settled.',
+    'c.cash10k': 'A cash payment above ₹10,000 to one person in a day is not allowed as a business expense under income-tax law (₹35,000 for transporters). Save anyway?'
   };
 
   var packs = { en: EN }, cur = 'en';
