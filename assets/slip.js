@@ -51,7 +51,7 @@
   function blank() {
     var c = CFG[type] || {}, inv = CFG.invoice || {}, m = ym(NS.today());
     var d = {
-      type: type, kind: T.kinds ? T.kinds[0] : '', no: '', date: NS.today(), paper: c.paper || T.paper, design: 'classic', accent: c.accent || inv.accent || ACCENTS[0], copies: 1, copyLabel: T.copy ? 'orig' : '',
+      type: type, kind: T.kinds ? T.kinds[0] : '', no: '', date: NS.today(), paper: c.paper || T.paper, design: c.design || 'classic', accent: c.accent || inv.accent || ACCENTS[0], copies: 1, copyLabel: T.copy ? 'orig' : '',
       seller: { name: '', addr: '', city: '', pin: '', state: '', gstin: '', phone: '', email: '', pan: '', logo: '', sign: '', bankName: '', bankAcc: '', bankIfsc: '', bankBranch: '', upi: '' },
       buyer: { name: '', addr: '', phone: '', gstin: '', pan: '' }, notes: c.notes || '', status: ''
     };
@@ -138,6 +138,7 @@
       (type === 'petty' || type === 'salary' ? '' : field('d-notes', t('l.notes'), { type: 'textarea', wide: true })) +
       (T.copy ? field('d-copies', t('l.copies'), { type: 'select', opts: [['1', t('cps.1')], ['2', t('s.cps2')]], hint: t('s.h.copies') }) : '') +
       (T.papers.length > 1 ? field('d-paper', t('l.paper'), { type: 'select', opts: T.papers.map(function (k) { return [k, t('pp.' + k)]; }) }) : '') +
+      NS.designField('d-design') +
       '<div class="f"><span class="lbl" id="acc-lbl">' + esc(t('l.colour')) + '</span><div class="swatches" role="radiogroup" aria-labelledby="acc-lbl">' + ACCENTS.map(function (c, i) { return '<button type="button" role="radio" class="sw" data-accent="' + c + '" style="--c:' + c + '" aria-label="' + esc(t('colour.n', { n: i + 1 })) + '"></button>'; }).join('') + '</div></div>' +
       '<p class="hint wide print-note">' + esc(tw('print.en')) + '</p></div>');
   }
@@ -291,7 +292,7 @@
   var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan', 's-state': 'state' };
   var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin', 'b-pan': 'pan' };
   var EMAP = { 'e-code': 'code', 'e-desig': 'desig', 'e-dept': 'dept', 'e-doj': 'doj', 'e-pan': 'pan', 'e-uan': 'uan', 'e-esi': 'esi', 'e-bankName': 'bankName', 'e-bankAcc': 'bankAcc', 'e-bankIfsc': 'bankIfsc' };
-  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper'];
+  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper', 'design'];
   function fillForm(onlyLook) {
     var ed = $('#ed', root);
     if (!onlyLook) {
@@ -303,6 +304,7 @@
       ['s-gstin', 'b-gstin'].forEach(function (id) { if ($('#' + id, ed)) checkGstin(id); });
     }
     $$('[data-accent]', ed).forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-accent') === doc.accent)); });
+    NS.designSync(ed, doc.design, doc.accent);
     ['logo', 'sign'].forEach(function (k) { var b = $('[data-clear="' + k + '"]', ed); if (b) b.hidden = !doc.seller[k]; });
     var kh = $('#kind-hint', ed); if (kh) kh.textContent = t('kh.' + doc.kind);
     $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac') && !doc.gstAdv); });
@@ -370,7 +372,7 @@
     var m = P[MODEP[d.mode]] || P.other;
     return P.by + ' ' + m + (d.ref ? ' ' + (d.mode === 'cheque' ? 'no. ' : 'ref. ') + '<span class="mono">' + esc(d.ref) + '</span>' : '') + (d.refDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.refDate) : '') + (d.bank ? ' ' + P.drawn + ' ' + esc(d.bank) : '');
   }
-  function sheetOpen(d, extra) { return '<div class="sh slip ' + type + (d.paper === 'a5' ? ' a5' : '') + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">'; }
+  function sheetOpen(d, extra) { return '<div class="sh slip ' + type + ' d-' + esc(d.design || 'classic') + (d.paper === 'a5' ? ' a5' : '') + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">'; }
 
   function receiptHtml(d, label) {
     var o = sums(d), s = d.seller, name = d.buyer.name ? '<b>' + esc(d.buyer.name) + '</b>' : '<span class="ph">customer name</span>';
