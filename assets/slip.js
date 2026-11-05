@@ -516,6 +516,8 @@
       if (f) { var det = f.closest('details'); if (det) det.open = true; showTab('edit'); f.focus(); }
       return Promise.reject(new Error(probs[0][1]));
     }
+    var shut = NS.closedMsg && NS.closedMsg(doc.seller.name, doc.date);   /* closed financial year (docmore.js) */
+    if (shut) { NS.toast(shut, 'bad'); return Promise.reject(new Error(shut)); }
     var tot = sums(doc).total;
     if (doc.mode === 'cash' && type === 'receipt' && tot >= 200000 && !confirm(t('c.cash2l'))) return Promise.reject(new Error('cancel'));
     if (doc.mode === 'cash' && type === 'voucher' && tot > 10000 && !confirm(t('c.cash10k'))) return Promise.reject(new Error('cancel'));
@@ -589,7 +591,8 @@
         NSStore.get('doc', id).then(function (rec) {
           if (!rec) return;
           if (act === 'open' || act === 'copy') { dlg.close(); openDoc(rec, act === 'copy'); }
-          else if (act === 'del' && confirm(tw('c.del', { no: rec.no }))) return NSStore.del('doc', id).then(function () { if (editingId === id) { editingId = null; setStatus(); } renderHistory(); NS.toast(t('deleted')); });
+          else if (act === 'del' && NS.closedMsg && NS.closedMsg(rec.seller && rec.seller.name, rec.date)) NS.toast(NS.closedMsg(rec.seller && rec.seller.name, rec.date), 'bad');   /* closed year (docmore.js) */
+          else if (act === 'del' && confirm(t('b1.cdel', { x: rec.no }))) return NSStore.del('doc', id).then(function () { if (editingId === id) { editingId = null; setStatus(); } renderHistory(); NS.toast(t('b1.binned')); }, function (err) { NS.toast(err.message, 'bad'); });
         });
       });
     }
