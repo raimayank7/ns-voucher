@@ -180,7 +180,7 @@
         card(t('s.lg.from'), '<div class="fg">' + field('b-name', t('s.fromname'), { wide: true, ph: t('ph.cname'), hint: t('h.cname') }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) +
           field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-gstin', t('l.cgstin'), { max: 15, ltr: 1 }) + '</div>') +
         card(t('s.lg.pay'), '<div class="fg">' + field('d-amount', t('s.amount'), { mode: 'decimal', ltr: 1, wide: true }) + payFields() +
-          field('d-against', t('s.against'), { hint: t('s.h.against') }) + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) +
+          field('d-against', t('s.against'), { hint: t('s.h.against') }) + only('pay', '<div class="f wide rb-box" id="rb-bills" aria-live="polite"></div>') + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) +
           only('ref', field('d-rv', t('s.rv'), { ltr: 1, hint: t('s.h.rv') })) + only('ref', field('d-rvDate', t('s.rvdate'), { type: 'date' })) +
           chk('d-gstAdv', t('s.gstadv'), t('s.h.gstadv'), 'adv ref') + only('adv ref', field('d-rate', t('l.gst'), { mode: 'decimal', ltr: 1, list: 'dl-rates' })) +
           only('adv ref', field('d-pos', t('l.pos'), { type: 'select', opts: stateOpts(t('s.samestate')) })) + only('adv ref', field('d-sac', t('s.sacf'), { ltr: 1, max: 8, mode: 'numeric' })) + '</div>');
@@ -308,6 +308,42 @@
     ['logo', 'sign'].forEach(function (k) { var b = $('[data-clear="' + k + '"]', ed); if (b) b.hidden = !doc.seller[k]; });
     var kh = $('#kind-hint', ed); if (kh) kh.textContent = t('kh.' + doc.kind);
     $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac') && !doc.gstAdv); });
+    if (!onlyLook && type === 'receipt') billsSoon();
+  }
+  /* receipt: the customer's unpaid bills from the data home (NSBooks.bills). Ticking bills fills "Against", the amount
+     (when empty) and the balance still due, and links the money to those bills (alloc), as App > Money received does */
+  var rbTimer = 0;
+  function billsSoon() { clearTimeout(rbTimer); rbTimer = setTimeout(billsPanel, 300); }
+  function allocate() {
+    var left = r2(num(doc.amount) + num(doc.tds)), due = 0;
+    doc.alloc = (doc.alloc || []).map(function (a) { var x = r2(Math.min(num(a.left), left)); left = r2(left - x); due = r2(due + num(a.left)); return { id: a.id, no: a.no, amt: x, left: a.left }; });
+    if (!doc.alloc.length) { delete doc.alloc; return; }
+    doc.against = doc.alloc.map(function (a) { return a.no; }).filter(Boolean).join(', ');
+    var bal = r2(due - num(doc.amount) - num(doc.tds)); doc.balance = bal > 0 ? String(bal) : '';
+  }
+  function billsPanel() {
+    var box = $('#rb-bills', root); if (!box) return;
+    var nm = key(doc.buyer && doc.buyer.name), biz = doc.seller && doc.seller.name;
+    if (type !== 'receipt' || doc.kind !== 'pay' || !nm || !String(biz || '').trim() || !window.NSBooks) { box.innerHTML = ''; return; }
+    NSStore.list('doc').then(function (all) {
+      var open = NSBooks.bills(all.filter(function (d) { return d.id !== editingId; }), biz, nm).bills.filter(function (b) { return b.side === 'recv'; });
+      if (key(doc.buyer.name) !== nm) return;
+      var on = {}; (doc.alloc || []).forEach(function (a) { on[a.id] = 1; });
+      if (!open.length) { box.innerHTML = '<p class="soft">' + esc(t('rb.none', { p: doc.buyer.name })) + '</p>'; return; }
+      box.innerHTML = '<fieldset class="rb-list"><legend>' + esc(t('rb.h', { p: doc.buyer.name })) + '</legend>' + open.map(function (b) {
+        return '<label class="chk"><input type="checkbox" data-rb="' + esc(b.id) + '" data-no="' + esc(b.no) + '" data-left="' + b.left + '"' + (on[b.id] ? ' checked' : '') + '> <span><b class="mono" dir="ltr">' + esc(b.no || '—') + '</b> · ' + esc(NS.fmtDate(b.date)) +
+          ' · ' + esc(t('rb.due', { a: NS.money(b.left) })) + '</span></label>';
+      }).join('') + '<small class="hint">' + esc(t('rb.hint')) + '</small></fieldset>';
+      $$('[data-rb]', box).forEach(function (c) {
+        c.addEventListener('change', function () {
+          var picked = $$('[data-rb]:checked', box).map(function (x) { return { id: x.getAttribute('data-rb'), no: x.getAttribute('data-no'), left: num(x.getAttribute('data-left')) }; });
+          if (!num(doc.amount) && picked.length) doc.amount = String(r2(picked.reduce(function (a, x) { return a + x.left; }, 0) - num(doc.tds)));
+          doc.alloc = picked;
+          if (!picked.length) { delete doc.alloc; doc.against = ''; doc.balance = ''; } else allocate();
+          fillForm(); draw(); saveDraft();
+        });
+      });
+    }).catch(function () { box.innerHTML = ''; });
   }
   function checkGstin(id) {
     var inp = $('#' + id, root), err = $('#' + id + '-err', root), r = NS.gstinCheck(inp.value);
@@ -324,6 +360,11 @@
     else return;
     if (id === 's-gstin' || id === 'b-gstin') { el.value = el.value.toUpperCase(); (id[0] === 's' ? doc.seller : doc.buyer).gstin = el.value; checkGstin(id); }
     if (id === 'd-kind' || id === 'd-gstAdv') fillForm(true);
+    if (type === 'receipt') {
+      if ((id === 'd-amount' || id === 'd-tds') && doc.alloc) { allocate(); var ab = $('#d-balance', root), ag = $('#d-against', root); if (ab) ab.value = doc.balance; if (ag) ag.value = doc.against; }
+      if (id === 'd-against' && doc.alloc) { delete doc.alloc; billsSoon(); }   /* typed by hand: no longer linked to the ticked bills */
+      if (id === 'b-name' || id === 's-name' || id === 'd-kind') { if (id !== 'd-kind' && doc.alloc) { delete doc.alloc; doc.against = ''; doc.balance = ''; var a2 = $('#d-against', root), b2 = $('#d-balance', root); if (a2) a2.value = ''; if (b2) b2.value = ''; } billsSoon(); }
+    }
     if (id === 'b-pan') el.value = el.value.toUpperCase();
     if ((id === 'd-date' || id === 'd-month') && e.type === 'change') suggestNumber(false);
     draw(); saveDraft();
