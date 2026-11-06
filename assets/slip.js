@@ -49,7 +49,7 @@
   function lastDay(m) { var d = new Date(+m.slice(0, 4), +m.slice(5, 7), 0); return m + '-' + String(d.getDate()).padStart(2, '0'); }
 
   function blank() {
-    var c = CFG[type] || {}, inv = CFG.invoice || {}, m = ym(NS.today());
+    var C = NS.cfgFor(CFG, doc && doc.seller), c = C[type] || {}, inv = C.invoice || {}, m = ym(NS.today());
     var d = {
       type: type, kind: T.kinds ? T.kinds[0] : '', no: '', date: NS.today(), paper: c.paper || T.paper, design: c.design || 'classic', accent: c.accent || inv.accent || ACCENTS[0], copies: 1, copyLabel: T.copy ? 'orig' : '',
       seller: { name: '', addr: '', city: '', pin: '', state: '', gstin: '', phone: '', email: '', pan: '', logo: '', sign: '', bankName: '', bankAcc: '', bankIfsc: '', bankBranch: '', upi: '' },
@@ -226,7 +226,7 @@
     else NS.suggest($('#s-name', ed), function () { return NSStore.list('biz'); }, function (x) { return x.name; }, function (b) {
       doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; fillForm(); suggestNumber(true); draw(); saveDraft();
     });
-    if (type === 'receipt' || type === 'voucher') NS.suggest($('#b-name', ed), function () { return NSStore.list('party'); }, function (x) { return x.name; }, function (p) {
+    if (type === 'receipt' || type === 'voucher') NS.suggest($('#b-name', ed), function () { return NSStore.list('party').then(function (l) { return NS.forBiz(l, doc.seller); }); }, function (x) { return x.name; }, function (p) {
       doc.buyer = { name: p.name, addr: p.addr || '', phone: p.phone || '', gstin: p.gstin || '' }; fillForm(); draw(); saveDraft();
     });
     if (type === 'rent') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) { doc.buyer.name = d.buyer.name; doc.prop = d.prop; doc.rent = d.rent; doc.mode = d.mode; });
@@ -373,7 +373,7 @@
   /* ---------- numbering: PREFIX/26-27/001, one series per business (rent: per landlord) and financial year ---------- */
   function suggestNumber(force) {
     if (editingId && !force) return Promise.resolve();
-    var inv = CFG.invoice || {}, c = Object.assign({ digits: inv.digits, fy: inv.fy }, CFG[type] || {}), fy = NS.fy(doc.date), short = fy.slice(2, 4) + '-' + fy.slice(5);
+    var C = NS.cfgFor(CFG, doc.seller), inv = C.invoice || {}, c = Object.assign({ digits: inv.digits, fy: inv.fy }, C[type] || {}), fy = NS.fy(doc.date), short = fy.slice(2, 4) + '-' + fy.slice(5);
     var pre = String(c.prefix != null ? c.prefix : T.prefix).trim().replace(/[^A-Za-z0-9\/\-]/g, '');
     var prefix = (pre ? pre + '/' : '') + (c.fy === false ? '' : short + '/'), digits = Math.min(6, Math.max(1, +c.digits || 3));
     return NSStore.list('doc').then(function (all) {
@@ -588,8 +588,11 @@
   function setStatus() { var st = $('#tool-status', root); if (st) st.textContent = editingId ? tw('st.edit', { no: doc.no }) : tw('st.new'); }
   function startNew() {
     var seller = doc.seller; doc = blank(); editingId = null; doc.seller = seller;
-    fillForm(); suggestNumber(true); draw(); saveDraft(); setStatus();
+    fillForm(); draw(); saveDraft(); setStatus();
+    /* the seller of the last document may have been deleted since: a new document takes a saved business */
+    (type !== 'rent' ? NS.liveSeller(seller, CFG, true) : Promise.resolve(null)).then(function (b) { if (b) { setSeller(b); fillForm(); draw(); } return suggestNumber(true); }).then(saveDraft, function () {});
   }
+  function setSeller(b) { doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; }
   function openDoc(rec, asCopy) {
     doc = Object.assign(blank(), JSON.parse(JSON.stringify(rec)));
     delete doc.id; delete doc.created; delete doc.updated; delete doc.total;
@@ -684,7 +687,7 @@
     if (dr) { doc = Object.assign(blank(), dr.doc); editingId = dr.id || null; }
     function render() { buildEditor(); fillForm(); draw(); setStatus(); labelButtons(); if (histOpen) renderHistory(); series(); }
     /* "Change number series" under the number box */
-    function series() { NS.seriesLink($('#d-no', root), { type: type, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } }); }
+    function series() { NS.seriesLink($('#d-no', root), { type: type, biz: function () { return doc.seller; }, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } }); }
     render();
     document.addEventListener('ns-lang', render);
     var typed = false;
@@ -692,20 +695,25 @@
     /* the form shows at once (it used to wait for the data home, up to 6 s on a first visit, while the preview already showed);
            saved defaults arrive later and never overwrite what the visitor has started typing */
     if (!/[?&](open|from)=/.test(location.search)) root.classList.add('live');
-    NSStore.ready().then(function () { return NSStore.meta('settings').then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
+    NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
       /* ?open=<id>: the Nivesh Sahayak App opens a saved receipt or voucher here to print or share */
       var open = new URLSearchParams(location.search).get('open');
       if (open && !NS.leaving) {
         history.replaceState(null, '', location.pathname + location.hash);
         return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) { openDoc(rec, false); render(); } }).catch(function () {});
       }
-      /* an unfinished draft keeps everything, but still gets the next number when its number box is empty or still automatic */
-      if (dr) return suggestNumber(false);
-      if (typed) return suggestNumber(false);
-      var seller = doc.seller; doc = blank(); doc.seller = seller;
-      return (type !== 'rent' ? NS.defaultBiz(CFG) : Promise.resolve()).then(function (b) {
-        if (b && !doc.seller.name) { doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; }
-        render(); return suggestNumber(true);
+      /* a draft of a saved record that no longer exists (deleted elsewhere) starts fresh; a new one takes a saved business */
+      return NS.liveDraft(dr).then(function (live) {
+        if (dr && !live && !typed) { dr = null; editingId = null; doc = blank(); render(); }
+        var appNew = !typed && /[?&]new=1/.test(location.search) && NS.inApp;
+        return (type !== 'rent' ? NS.liveSeller(doc.seller, CFG, !dr || appNew) : Promise.resolve(null)).then(function (b) {
+          if (dr && appNew && b && doc.seller.name) { dr = null; doc = blank(); }
+          /* an unfinished draft keeps everything, but still gets the next number when its number box is empty or still automatic */
+          if (dr || typed) { if (b && !doc.seller.name) { setSeller(b); render(); } return suggestNumber(false); }
+          var seller = doc.seller; doc = blank(); doc.seller = seller;
+          if (b) setSeller(b);
+          render(); return suggestNumber(true);
+        });
       });
     }).then(function () { NS.checkReminder(); NSStore.persist().catch(function () {}); root.classList.add('live'); });
     $$('[data-tab-btn]', root).forEach(function (b) { b.addEventListener('click', function () { showTab(b.getAttribute('data-tab-btn')); }); });
