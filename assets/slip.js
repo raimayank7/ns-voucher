@@ -38,6 +38,7 @@
     cash: 'cash', upi: 'UPI', cheque: 'cheque', bank2: 'bank transfer (NEFT/RTGS/IMPS)', card: 'card', dd: 'demand draft', other: 'other means'
   };
   var MODEP = { cash: 'cash', upi: 'upi', cheque: 'cheque', bank: 'bank2', card: 'card', dd: 'dd', other: 'other' };
+  var ACCT = { salary: 1, rent: 1, petty: 1 };   /* slips that can go into the accounts (WP-5) */
 
   var root, T, type, doc, editingId = null, sheet, CFG = {}, lastAuto = '', dkey;
   function W() { return { doc: t('doc.' + type), docs: t('docs.' + type), Doc: t('Doc.' + type) }; }
@@ -58,6 +59,9 @@
     if (type === 'receipt') Object.assign(d, { gstAdv: false, rate: '18', pos: '', sac: '', rv: '', rvDate: '', amount: '', tds: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
     if (type === 'voucher') Object.assign(d, { tdsSec: '', tdsRate: '', rcm: false, rcmRate: '18', lines: [{ desc: '', head: '', amt: '' }], mode: 'cash', ref: '', refDate: '', prep: '', appr: '' });
     if (type === 'rent') Object.assign(d, { pan: '', prop: '', rent: '', from: m, to: m, mode: 'cash', ref: '', day: 'last' });
+    /* WP-5: a new salary slip, rent receipt or petty cash book goes into the business's accounts unless unticked (a slip printed for
+       someone else); erPf / erEsi = the employer's own PF and ESI; payDate / payMode = when and how the net pay was paid */
+    if (ACCT[type]) Object.assign(d, { acct: true }, type === 'salary' ? { erPf: '', erEsi: '', payDate: '', payMode: 'bank' } : {});
     if (type === 'salary') Object.assign(d, { regime: 'new', ptState: '', month: m, emp: { code: '', desig: '', dept: '', doj: '', pan: '', uan: '', esi: '', bankName: '', bankAcc: '', bankIfsc: '' }, days: '', paid: '',
       earn: EARN.map(function (x) { return { desc: x, amt: '' }; }), ded: DED.map(function (x) { return { desc: x, amt: '' }; }) });
     if (type === 'petty') Object.assign(d, { from: NS.today().slice(0, 8) + '01', to: NS.today(), opening: '', lines: [{ date: NS.today(), vno: '', desc: '', head: '', recd: '', paid: '' }], cashier: '', appr: '' });
@@ -142,6 +146,14 @@
       '<div class="f"><span class="lbl" id="acc-lbl">' + esc(t('l.colour')) + '</span><div class="swatches" role="radiogroup" aria-labelledby="acc-lbl">' + ACCENTS.map(function (c, i) { return '<button type="button" role="radio" class="sw" data-accent="' + c + '" style="--c:' + c + '" aria-label="' + esc(t('colour.n', { n: i + 1 })) + '"></button>'; }).join('') + '</div></div>' +
       '<p class="hint wide print-note">' + esc(tw(type === 'salary' ? 'print.ens' : 'print.en')) + '</p></div>');   /* a salary slip is read by the employee, not a customer (round C) */
   }
+  /* WP-5: "Add to my accounts" and, on a salary slip, the employer's PF / ESI and when the net pay was paid */
+  function acctCard() {
+    if (!ACCT[type]) return '';
+    return card(t('w5.lg'), '<div class="fg">' + chk('d-acct', t('w5.acct'), t('w5.h_' + type)) +
+      (type === 'salary' ? field('d-erPf', t('w5.erpf'), { mode: 'decimal', ltr: 1, hint: t('w5.h_erpf') }) + field('d-erEsi', t('w5.eresi'), { mode: 'decimal', ltr: 1 }) +
+        field('d-payDate', t('w5.paydate'), { type: 'date', hint: t('w5.h_paydate') }) + field('d-payMode', t('w5.paymode'), { type: 'select', opts: modeOpts() }) +
+        '<p class="hint wide">' + esc(t('w5.h_adv')) + '</p>' : '') + '</div>');
+  }
   function linesHtml(list, cols, add) {
     return '<div class="ln" data-list="' + list + '">' + doc[list].map(function (l, i) {
       return '<div class="it ln-row" data-i="' + i + '"><div class="it-head"><span>' + esc(t('it.n', { n: i + 1 })) + '</span>' + (doc[list].length > 1 ? '<button type="button" class="link" data-del="' + i + '">' + esc(t('it.rm')) + '</button>' : '') + '</div><div class="ln-grid c' + cols.length + '">' +
@@ -212,7 +224,7 @@
         card(t('s.lg.entries'), '<div data-lines="lines"></div><div class="sums" id="ed-sums" aria-live="polite"></div>') +
         card(t('s.lg.sign'), '<div class="fg">' + field('d-cashier', t('s.cashier')) + field('d-appr', t('s.appr')) + '</div>');
     }
-    h += lookCard() + '<datalist id="dl-rates">' + [5, 18, 40, 12, 28, 3, 1.5, 0.25, 0.1].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
+    h += acctCard() + lookCard() + '<datalist id="dl-rates">' + [5, 18, 40, 12, 28, 3, 1.5, 0.25, 0.1].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
       '<datalist id="dl-tds">' + TDSSEC.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' + '<datalist id="dl-heads">' + HEADS.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>';
     ed.innerHTML = h;
     $$('[data-accent]', ed).forEach(function (b) { b.addEventListener('click', function () { doc.accent = b.getAttribute('data-accent'); fillForm(true); draw(); saveDraft(); }); });
@@ -231,7 +243,10 @@
       doc.buyer = { name: p.name, addr: p.addr || '', phone: p.phone || '', gstin: p.gstin || '' }; fillForm(); draw(); saveDraft();
     });
     if (type === 'rent') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) { doc.buyer.name = d.buyer.name; doc.prop = d.prop; doc.rent = d.rent; doc.mode = d.mode; });
-    if (type === 'salary') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) {
+    if (type === 'salary' && window.NSStaff) NS.suggest($('#b-name', ed), function () { return NSStaff.forSlip(doc.seller && doc.seller.name); }, function (x) { return x.name; }, function (e) {
+      NSStaff.fillSlip(doc, e); fillForm(); draw(); saveDraft();
+    });
+    else if (type === 'salary') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) {
       doc.buyer.name = d.buyer.name; doc.emp = JSON.parse(JSON.stringify(d.emp || {})); doc.earn = JSON.parse(JSON.stringify(d.earn)); doc.ded = JSON.parse(JSON.stringify(d.ded)); doc.days = ''; doc.paid = '';
     });
     renderLines();
@@ -260,6 +275,9 @@
     else set(/professional/i, pt);
     var pf = Math.round(Math.min(basic, 25000) * 0.12), ptm = pt || num((doc.ded.filter(function (x) { return /professional/i.test(x.desc); })[0] || {}).amt);
     set(/TDS|income tax/i, tdsMonth(gross, doc.regime, pf, ptm));
+    /* the employer's own share (WP-5): PF 12% of basic up to ₹25,000, ESI 3.25% of gross when gross is ₹21,000 or less */
+    doc.erPf = pf ? String(pf) : ''; doc.erEsi = gross && gross <= 21000 ? String(Math.ceil(gross * 0.0325)) : '';
+    ['erPf', 'erEsi'].forEach(function (k) { var e = document.getElementById('d-' + k); if (e) e.value = doc[k]; });
     renderLines(); draw(); saveDraft();
   }
 
@@ -295,7 +313,7 @@
   var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan', 's-state': 'state' };
   var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin', 'b-pan': 'pan' };
   var EMAP = { 'e-code': 'code', 'e-desig': 'desig', 'e-dept': 'dept', 'e-doj': 'doj', 'e-pan': 'pan', 'e-uan': 'uan', 'e-esi': 'esi', 'e-bankName': 'bankName', 'e-bankAcc': 'bankAcc', 'e-bankIfsc': 'bankIfsc' };
-  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper', 'design'];
+  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper', 'design', 'acct', 'erPf', 'erEsi', 'payDate', 'payMode'];
   function fillForm(onlyLook) {
     var ed = $('#ed', root);
     if (!onlyLook) {
@@ -604,6 +622,7 @@
         var role = !hit || !hit.role ? want : hit.role === want || hit.role === 'both' ? hit.role : 'both';
         return NSStore.put('party', Object.assign(hit || {}, { name: b.name.trim(), addr: b.addr || (hit && hit.addr) || '', phone: b.phone || (hit && hit.phone) || '', gstin: b.gstin || (hit && hit.gstin) || '', role: role }));
       }));
+      if (type === 'salary' && b.name.trim() && window.NSStaff) jobs.push(NSStaff.keep(doc));   /* WP-5: the employee list fills itself */
       return Promise.all(jobs);
     }).then(function () {
       var rec = JSON.parse(JSON.stringify(doc)); rec.total = sums(doc).total; if (editingId) rec.id = editingId;
@@ -624,10 +643,11 @@
     doc = Object.assign(blank(), JSON.parse(JSON.stringify(rec)));
     delete doc.id; delete doc.created; delete doc.updated; delete doc.total;
     editingId = asCopy ? null : rec.id;
+    if (ACCT[type] && !asCopy && rec.acct == null) doc.acct = false;   /* a slip saved before WP-5 stays out of the accounts until ticked */
     if (asCopy) {
       doc.date = NS.today();
       /* a copy of last month's slip or book moves on by one period */
-      if (type === 'salary') { doc.month = nextYm(doc.month || ym(NS.today())); doc.days = ''; doc.paid = ''; }
+      if (type === 'salary') { doc.month = nextYm(doc.month || ym(NS.today())); doc.days = ''; doc.paid = ''; doc.payDate = ''; }
       if (type === 'rent') { var span = months(doc.from, doc.to).length || 1, f = nextYm(doc.to || doc.from); doc.from = f; doc.to = f; for (var i = 1; i < span; i++) doc.to = nextYm(doc.to); }
       if (type === 'petty') { var close = sums(doc).closing; doc.opening = String(close); doc.from = NS.today(); doc.to = NS.today(); doc.lines = [{ date: NS.today(), vno: '', desc: '', head: '', recd: '', paid: '' }]; }
     }
