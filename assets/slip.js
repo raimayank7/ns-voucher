@@ -106,7 +106,7 @@
     return '<div class="f' + (o.wide ? ' wide' : '') + '"><label for="' + id + '">' + esc(label) + '</label>' + input + hint + '<small class="err" id="' + id + '-err" hidden></small></div>';
   }
   function card(legend, inner) { return '<fieldset class="card"><legend>' + esc(legend) + '</legend>' + inner + '</fieldset>'; }
-  function stateOpts(first) { return [['', first]].concat(NS.STATES.map(function (x) { return [x[0], x[1] + ' (' + x[0] + ')']; })); }
+  function stateOpts(first) { return [['', first]].concat(NS.STATES.map(function (x) { return [x[0], NS.stateLoc(x[0]) + ' (' + x[0] + ')']; })); }
   function chk(id, label, hint, forKinds) {
     return '<div class="f wide"' + (forKinds ? ' data-for="' + forKinds + '"' : '') + '><label class="chk"><input id="' + id + '" type="checkbox"> ' + esc(label) + '</label>' + (hint ? '<small class="hint">' + esc(hint) + '</small>' : '') + '</div>';
   }
@@ -140,7 +140,7 @@
       (T.papers.length > 1 ? field('d-paper', t('l.paper'), { type: 'select', opts: T.papers.map(function (k) { return [k, t('pp.' + k)]; }) }) : '') +
       NS.designField('d-design') +
       '<div class="f"><span class="lbl" id="acc-lbl">' + esc(t('l.colour')) + '</span><div class="swatches" role="radiogroup" aria-labelledby="acc-lbl">' + ACCENTS.map(function (c, i) { return '<button type="button" role="radio" class="sw" data-accent="' + c + '" style="--c:' + c + '" aria-label="' + esc(t('colour.n', { n: i + 1 })) + '"></button>'; }).join('') + '</div></div>' +
-      '<p class="hint wide print-note">' + esc(tw('print.en')) + '</p></div>');
+      '<p class="hint wide print-note">' + esc(tw(type === 'salary' ? 'print.ens' : 'print.en')) + '</p></div>');   /* a salary slip is read by the employee, not a customer (round C) */
   }
   function linesHtml(list, cols, add) {
     return '<div class="ln" data-list="' + list + '">' + doc[list].map(function (l, i) {
@@ -181,8 +181,9 @@
           field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-gstin', t('l.cgstin'), { max: 15, ltr: 1 }) + '</div>') +
         card(t('s.lg.pay'), '<div class="fg">' + field('d-amount', t('s.amount'), { mode: 'decimal', ltr: 1, wide: true }) + payFields() +
           field('d-against', t('s.against'), { hint: t('s.h.against') }) + only('pay', '<div class="f wide rb-box" id="rb-bills" aria-live="polite"></div>') + field('d-purpose', t('s.purpose'), { ph: t('s.ph.purpose') }) + field('d-tds', t('s.tds'), { mode: 'decimal', ltr: 1, hint: t('s.h.tds') }) + field('d-balance', t('s.balance'), { mode: 'decimal', ltr: 1, hint: t('s.h.balance') }) +
-          only('ref', field('d-rv', t('s.rv'), { ltr: 1, hint: t('s.h.rv') })) + only('ref', field('d-rvDate', t('s.rvdate'), { type: 'date' })) +
+          only('ref', field('d-rv', t('s.rv'), { ltr: 1, hint: t('s.h.rv'), list: 'dl-rv' }).replace('</div>', '<datalist id="dl-rv"></datalist></div>')) + only('ref', field('d-rvDate', t('s.rvdate'), { type: 'date' })) +
           chk('d-gstAdv', t('s.gstadv'), t('s.h.gstadv'), 'adv ref') + only('adv ref', field('d-rate', t('l.gst'), { mode: 'decimal', ltr: 1, list: 'dl-rates' })) +
+          only('adv ref', '<div class="f wide"><p class="hint" id="d-advnote">' + esc(t('s.h.advbooks')) + '</p></div>') +
           only('adv ref', field('d-pos', t('l.pos'), { type: 'select', opts: stateOpts(t('s.samestate')) })) + only('adv ref', field('d-sac', t('s.sacf'), { ltr: 1, max: 8, mode: 'numeric' })) + '</div>');
     } else if (type === 'voucher') {
       h += bizCard() + numCard(payFields()) +
@@ -249,6 +250,8 @@
   /* PF 12% of basic (on at most ₹25,000 of basic, the EPF wage ceiling since 17 Sep 2026), ESI 0.75% of gross when gross is ₹21,000 or less */
   function fillPf() {
     var basic = num((doc.earn[0] || {}).amt), gross = sums(doc).gross;
+    /* professional tax follows the business's state unless another is chosen (round C: left blank with no word) */
+    if (!doc.ptState && doc.seller && doc.seller.state) { doc.ptState = doc.seller.state; var ps = document.getElementById('d-ptState'); if (ps) ps.value = doc.ptState; }
     var set = function (re, v) { var l = doc.ded.filter(function (x) { return re.test(x.desc); })[0]; if (l) l.amt = v ? String(v) : ''; };
     set(/PF|provident/i, Math.round(Math.min(basic, 25000) * 0.12));
     set(/ESI/i, gross && gross <= 21000 ? Math.ceil(gross * 0.0075) : 0);
@@ -307,7 +310,7 @@
     NS.designSync(ed, doc.design, doc.accent);
     ['logo', 'sign'].forEach(function (k) { var b = $('[data-clear="' + k + '"]', ed); if (b) b.hidden = !doc.seller[k]; });
     var kh = $('#kind-hint', ed); if (kh) kh.textContent = t('kh.' + doc.kind);
-    $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac') && !doc.gstAdv); });
+    $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac, #d-advnote') && !doc.gstAdv); });
     if (!onlyLook && type === 'receipt') billsSoon();
   }
   /* receipt: the customer's unpaid bills from the data home (NSBooks.bills). Ticking bills fills "Against", the amount
@@ -350,8 +353,25 @@
     err.hidden = r.ok; err.textContent = r.ok ? '' : r.msg; inp.setAttribute('aria-invalid', String(!r.ok));
     return r;
   }
+  /* a refund voucher picks the advance receipt it refunds: its no., date, SAC, rate and place of supply are copied (round C) */
+  var ADV = [];
+  function advList() {
+    if (type !== 'receipt' || doc.kind !== 'ref' || !window.NSStore) return;
+    NSStore.list('doc').then(function (all) {
+      var who = key(doc.buyer.name);
+      ADV = all.filter(function (d) { return d.type === 'receipt' && d.kind === 'adv' && d.no && (!who || key((d.buyer || {}).name) === who); }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 60);
+      var dl = document.getElementById('dl-rv'); if (dl) dl.innerHTML = ADV.map(function (d) { return '<option value="' + esc(d.no) + '">' + esc(NS.fmtDate(d.date) + ' · ' + ((d.buyer || {}).name || '') + ' · ' + NS.money(num(d.amount))) + '</option>'; }).join('');
+    }).catch(function () {});
+  }
+  function fromAdv(no) {
+    var a = ADV.filter(function (d) { return key(d.no) === key(no); })[0]; if (!a) return;
+    doc.rvDate = a.date || ''; if (a.gstAdv) { doc.gstAdv = true; doc.rate = a.rate; doc.sac = a.sac || doc.sac; doc.pos = a.pos || doc.pos; }
+    if (!String(doc.buyer.name || '').trim() && a.buyer) doc.buyer = Object.assign(doc.buyer, a.buyer);
+    fillForm(); draw(); saveDraft();
+  }
   function onInput(e) {
     var el = e.target, id = el.id, dk = id.slice(0, 2) === 'd-' ? id.slice(2) : null;
+    if (id === 'd-rv' && e.type === 'change') setTimeout(function () { fromAdv(el.value); }, 0);
     if (SMAP[id]) doc.seller[SMAP[id]] = id === 's-pan' ? el.value.toUpperCase() : el.value;
     else if (BMAP[id]) doc.buyer[BMAP[id]] = el.value;
     else if (EMAP[id]) { doc.emp[EMAP[id]] = /pan|Ifsc/.test(id) ? el.value.toUpperCase() : el.value; }
@@ -360,6 +380,7 @@
     else return;
     if (id === 's-gstin' || id === 'b-gstin') { el.value = el.value.toUpperCase(); (id[0] === 's' ? doc.seller : doc.buyer).gstin = el.value; checkGstin(id); }
     if (id === 'd-kind' || id === 'd-gstAdv') fillForm(true);
+    if (id === 'd-kind' && type === 'receipt' && !editingId) suggestNumber(false);
     if (type === 'receipt') {
       if ((id === 'd-amount' || id === 'd-tds') && doc.alloc) { allocate(); var ab = $('#d-balance', root), ag = $('#d-against', root); if (ab) ab.value = doc.balance; if (ag) ag.value = doc.against; }
       if (id === 'd-against' && doc.alloc) { delete doc.alloc; billsSoon(); }   /* typed by hand: no longer linked to the ticked bills */
@@ -374,12 +395,16 @@
   function suggestNumber(force) {
     if (editingId && !force) return Promise.resolve();
     var C = NS.cfgFor(CFG, doc.seller), inv = C.invoice || {}, c = Object.assign({ digits: inv.digits, fy: inv.fy }, C[type] || {}), fy = NS.fy(doc.date), short = fy.slice(2, 4) + '-' + fy.slice(5);
+    /* a refund voucher (s.31(3)(e)) has its own series, RFV/26-27/001 (round C: it took the receipt series) */
+    var isRef = type === 'receipt' && doc.kind === 'ref';
+    if (isRef) c = Object.assign({}, c, { prefix: (C.refund || {}).prefix != null ? C.refund.prefix : 'RFV' });
     var pre = String(c.prefix != null ? c.prefix : T.prefix).trim().replace(/[^A-Za-z0-9\/\-]/g, '');
     var prefix = (pre ? pre + '/' : '') + (c.fy === false ? '' : short + '/'), digits = Math.min(6, Math.max(1, +c.digits || 3));
     return NSStore.list('doc').then(function (all) {
       var k = key(doc.seller.name), max = 0;
       all.forEach(function (d) {
         if (d.type !== type || d.id === editingId || NS.fy(d.date) !== fy || key(d.seller && d.seller.name) !== k) return;
+        if (type === 'receipt' && (d.kind === 'ref') !== isRef) return;
         var m = String(d.no || '').match(/(\d+)\s*$/); if (m) max = Math.max(max, +m[1]);
       });
       if (force || !doc.no || doc.no === lastAuto || /^[A-Z]+\/\d\d-\d\d\/\d+$/.test(doc.no)) {
@@ -433,7 +458,9 @@
         ' ' + P.sum + ' <b>' + NS.inWords(o.total) + '</b> ' + payLine(d) + (d.kind === 'ref' && d.rv ? ', ' + P.rvref + ' <b class="mono">' + esc(d.rv) + '</b>' + (d.rvDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.rvDate) : '') : '') + (d.against ? ', ' + P.against + ' <b>' + esc(d.against) + '</b>' : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
       taxTbl + '<div class="rrow"><div class="amtbox">' + NS.money(o.total) + '</div>' + (num(d.tds) ? '<p class="small">' + P.tds + ': <b>' + NS.money(num(d.tds)) + '</b><br>' + P.billamt + ': <b>' + NS.money(o.total + num(d.tds)) + '</b></p>' : '') + (num(d.balance) ? '<p class="small">' + P.balance + ': <b>' + NS.money(num(d.balance)) + '</b></p>' : '') + '</div>' +
       (d.kind === 'adv' ? '<p class="small">' + (gstAdv ? P.advgst : P.advnote) + '</p>' : d.kind === 'ref' ? '<p class="small">' + P.refnote + '</p>' : '') + (d.notes ? '<p class="small">' + esc(d.notes).replace(/\n/g, '<br>') + '</p>' : '') +
-      '<div class="signs">' + stampBox(d.mode === 'cash' && o.total > 5000) + signbox(P['for'] + ' <b>' + esc(s.name || '') + '</b>', P.recby, s.sign) + '</div>' + made() + '</div>';
+      /* a refund voucher: we pay, so the business signs as the payer and the customer signs for the money (round C) */
+      '<div class="signs">' + (d.kind === 'ref' ? signbox('', "Receiver's signature", '') + signbox(P['for'] + ' <b>' + esc(s.name || '') + '</b>', 'Authorised signatory', s.sign)
+        : stampBox(d.mode === 'cash' && o.total > 5000) + signbox(P['for'] + ' <b>' + esc(s.name || '') + '</b>', P.recby, s.sign)) + '</div>' + made() + '</div>';
   }
   function voucherHtml(d) {
     var o = sums(d), s = d.seller, rows = d.lines.filter(function (l) { return l.desc || num(l.amt); });
@@ -681,6 +708,7 @@
     sheet = $('#sheet', root); dkey = 'ns-draft-' + type;
     var ed = $('#ed', root);
     ed.addEventListener('input', onInput); ed.addEventListener('change', onInput);
+    ed.addEventListener('focusin', function (e) { if (e.target.id === 'd-rv') advList(); });
     doc = blank();
     var dr = loadDraft();
     if (dr && dr.id && /[?&]new=1/.test(location.search)) dr = null;   /* the App's "New ..." (?new=1) starts a fresh document, not the saved one last opened */
