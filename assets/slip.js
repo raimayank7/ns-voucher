@@ -244,7 +244,7 @@
     });
     if (type === 'rent') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) { doc.buyer.name = d.buyer.name; doc.prop = d.prop; doc.rent = d.rent; doc.mode = d.mode; });
     if (type === 'salary' && window.NSStaff) NS.suggest($('#b-name', ed), function () { return NSStaff.forSlip(doc.seller && doc.seller.name); }, function (x) { return x.name; }, function (e) {
-      NSStaff.fillSlip(doc, e); fillForm(); draw(); saveDraft();
+      NSStaff.fillSlip(doc, e); fillForm(); draw(); saveDraft(); attDays(false);
     });
     else if (type === 'salary') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) {
       doc.buyer.name = d.buyer.name; doc.emp = JSON.parse(JSON.stringify(d.emp || {})); doc.earn = JSON.parse(JSON.stringify(d.earn)); doc.ded = JSON.parse(JSON.stringify(d.ded)); doc.days = ''; doc.paid = '';
@@ -261,6 +261,12 @@
         });
       });
     }, nameOf, function (d) { fill(d); fillForm(); draw(); saveDraft(); });
+  }
+  /* the days of the month from the attendance sheet of the App's Staff area (gap-pay): only when something was marked for this employee */
+  function attDays(force) {
+    if (type !== 'salary' || !window.NSPayroll || !window.NSStaff || !doc.buyer.name) return;
+    var e = NSStaff.find(doc.buyer.name, doc.seller && doc.seller.name); if (!e) return;
+    NSPayroll.Store.fillDays(doc, e, force).then(function (did) { if (did) { fillForm(); draw(); saveDraft(); } });
   }
   /* PF 12% of basic (on at most ₹25,000 of basic, the EPF wage ceiling since 17 Sep 2026), ESI 0.75% of gross when gross is ₹21,000 or less */
   function fillPf() {
@@ -406,6 +412,7 @@
     }
     if (id === 'b-pan') el.value = el.value.toUpperCase();
     if ((id === 'd-date' || id === 'd-month') && e.type === 'change') suggestNumber(false);
+    if (id === 'd-month' && e.type === 'change') attDays(true);
     draw(); saveDraft();
   }
 
