@@ -425,14 +425,15 @@
     if (isRef) c = Object.assign({}, c, { prefix: (C.refund || {}).prefix != null ? C.refund.prefix : 'RFV' });
     var pre = String(c.prefix != null ? c.prefix : T.prefix).trim().replace(/[^A-Za-z0-9\/\-]/g, '');
     var prefix = (pre ? pre + '/' : '') + (c.fy === false ? '' : short + '/'), digits = Math.min(6, Math.max(1, +c.digits || 3));
-    return NSStore.list('doc').then(function (all) {
+    return Promise.all([NSStore.list('doc'), NSStore.sfTag()]).then(function (r) {
+      var all = r[0]; prefix += r[1];   /* shared folder mode: this computer's letter */
       var k = key(doc.seller.name), max = 0;
       all.forEach(function (d) {
         if (d.type !== type || d.id === editingId || NS.fy(d.date) !== fy || key(d.seller && d.seller.name) !== k) return;
         if (type === 'receipt' && (d.kind === 'ref') !== isRef) return;
         var m = String(d.no || '').match(/(\d+)\s*$/); if (m) max = Math.max(max, +m[1]);
       });
-      if (force || !doc.no || doc.no === lastAuto || /^[A-Z]+\/\d\d-\d\d\/\d+$/.test(doc.no)) {
+      if (force || !doc.no || doc.no === lastAuto || /^[A-Z]+\/\d\d-\d\d\/[A-Z]{0,3}\d+$/.test(doc.no)) {
         doc.no = lastAuto = prefix + String(max + 1).padStart(digits, '0');
         var n = $('#d-no', root); if (n) n.value = doc.no;
         draw();
