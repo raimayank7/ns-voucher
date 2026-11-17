@@ -15,7 +15,7 @@
     petty: { prefix: 'PCB', title: 'PETTY CASH BOOK', paper: 'a4', papers: ['a4'] }
   };
   /* TDS sections under the Income-tax Act, 2025 (in force 1 Apr 2026), with the old 1961 section people know; suggestions only, the user types the final text */
-  var TDSSEC = ['393 (old 194C) contractors', '393 (old 194J) professional or technical fees', '393 (old 194I) rent', '393 (old 194H) commission or brokerage', '393 (old 194Q) purchase of goods'];
+  var TDSSEC = ['393(1) Sl. 6(i) (old 194C) contractors', '393(1) Sl. 6(iii) (old 194J) professional or technical fees', '393(1) Sl. 2 (old 194I) rent', '393(1) Sl. 1(ii) (old 194H) commission or brokerage', '393(1) Sl. 8(ii) (old 194Q) purchase of goods'];
   var MODES = ['cash', 'upi', 'cheque', 'bank', 'card', 'dd', 'other'];
   var HEADS = ['Office expenses', 'Travel and conveyance', 'Freight and cartage', 'Repairs and maintenance', 'Printing and stationery', 'Postage and courier', 'Tea and refreshments',
     'Staff welfare', 'Electricity', 'Telephone and internet', 'Rent', 'Salary and wages', 'Advance to staff', 'Purchase', 'Cleaning', 'Fuel', 'Miscellaneous'];
