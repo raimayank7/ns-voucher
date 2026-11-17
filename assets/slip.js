@@ -720,7 +720,7 @@
     var o = sums(doc);
     var txt = NAMES[type] + ' ' + doc.no + ' from ' + (doc.seller.name || '') + '\nDate: ' + NS.fmtDate(doc.date) + (o.total ? '\nAmount: ' + NS.money(o.total) : '');
     showTab('preview', true); draw(true); fit();
-    NS.sharePdf($$('.sh', sheet), fileName(), doc.paper, NAMES[type] + ' ' + doc.no, txt).then(function () { draw(); });
+    NS.sharePdf($$('.sh', sheet), fileName(), doc.paper, NAMES[type] + ' ' + doc.no, txt, { phone: doc.buyer && doc.buyer.phone }).then(function () { draw(); });
   }
 
   function showTab(which, quiet) {
