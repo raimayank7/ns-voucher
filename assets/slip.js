@@ -758,7 +758,7 @@
            saved defaults arrive later and never overwrite what the visitor has started typing */
     if (!/[?&](open|from)=/.test(location.search)) root.classList.add('live');
     NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
-      /* ?open=<id>: the Nivesh Sahayak App opens a saved receipt or voucher here to print or share */
+      /* ?open=<id>: NSBiz opens a saved receipt or voucher here to print or share */
       var open = new URLSearchParams(location.search).get('open');
       if (open && !NS.leaving) {
         history.replaceState(null, '', location.pathname + location.hash);
