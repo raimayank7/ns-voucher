@@ -76,7 +76,7 @@
       /* an advance for services carries GST inside the amount received; so does its refund */
       if (d.gstAdv && d.kind !== 'pay') {
         var rt = num(d.rate); o.tax = r2(o.total * rt / (100 + rt)); o.taxable = r2(o.total - o.tax);
-        o.intra = !d.pos || !d.seller.state || d.pos === d.seller.state;
+        var pos0 = (d.pos || (/^\d{2}[A-Z]/.test(String(d.buyer && d.buyer.gstin || '').toUpperCase()) ? String(d.buyer.gstin).slice(0, 2) : '')); o.intra = !pos0 || !d.seller.state || pos0 === d.seller.state;   /* the payer's GSTIN when no place of supply is chosen (F4-6) */
         if (o.intra) { o.cgst = r2(o.tax / 2); o.sgst = r2(o.tax - o.cgst); } else o.igst = o.tax;
       }
     }
@@ -479,7 +479,7 @@
     var ttl = d.kind === 'ref' ? P.rft : d.kind === 'adv' && d.gstAdv ? P.rvt : T.title, gstAdv = d.gstAdv && d.kind !== 'pay';
     var taxTbl = gstAdv ? '<table class="sum"><thead><tr><th>' + P.sac + '</th><th class="n">' + P.taxable + '</th><th class="n">' + 'GST' + '</th>' + (o.intra ? '<th class="n">' + P.cgst + '</th><th class="n">' + P.sgst + '</th>' : '<th class="n">' + P.igst + '</th>') + '<th class="n">' + P.taxtot + '</th></tr></thead><tbody><tr><td class="mono">' + esc(d.sac) + '</td><td class="n">' + NS.money(o.taxable, false) + '</td><td class="n">' + num(d.rate) + '%</td>' +
       (o.intra ? '<td class="n">' + NS.money(o.cgst, false) + '</td><td class="n">' + NS.money(o.sgst, false) + '</td>' : '<td class="n">' + NS.money(o.igst, false) + '</td>') + '<td class="n">' + NS.money(o.total, false) + '</td></tr></tbody></table>' : '';
-    var posCode = d.pos || s.state;
+    var posCode = (d.pos || (/^\d{2}[A-Z]/.test(String(d.buyer && d.buyer.gstin || '').toUpperCase()) ? String(d.buyer.gstin).slice(0, 2) : '')) || s.state;
     return sheetOpen(d) + head(d, ttl, label ? P[label] : '') +
       meta([[d.kind === 'ref' ? P.vno : P.rno, '<span class="mono">' + esc(d.no) + '</span>'], [P.date, NS.fmtDate(d.date)], [P.pos, gstAdv && posCode ? esc(NS.stateName(posCode)) + ' (' + posCode + ')' : '']]) +
       '<p class="rtext">' + (d.kind === 'ref' ? P.rfto : P.recfrom) + ' ' + name + (d.buyer.addr ? ', ' + esc(d.buyer.addr).replace(/\n/g, ', ') : '') + (d.buyer.gstin ? ' (GSTIN <span class="mono">' + esc(d.buyer.gstin) + '</span>)' : '') +
@@ -606,8 +606,23 @@
     if (doc.buyer.gstin && !NS.gstinCheck(doc.buyer.gstin).ok) p.push(['b-gstin', t('v.bg')]);
     return p;
   }
-  function upsert(store, match, obj) { return NSStore.list(store).then(function (all) { var hit = all.filter(match)[0]; return NSStore.put(store, Object.assign(hit || {}, obj)); }); }
-  function save() {
+  function keepFull(o) { var r = {}; Object.keys(o || {}).forEach(function (k) { if (o[k] !== '' && o[k] != null) r[k] = o[k]; }); return r; }   /* F6-4: an empty box on a document never wipes a saved value */
+  function upsert(store, match, obj) { return NSStore.list(store).then(function (all) { var hit = all.filter(match)[0]; return NSStore.put(store, Object.assign(hit || {}, hit ? keepFull(obj) : obj)); }); }
+  /* one save at a time: a double click or Ctrl+S pressed twice saved the document twice with one number (F3-1) */
+  var saving = null;
+  function save() { if (saving) return saving; saving = Promise.resolve(save0()); var free = function () { saving = null; }; saving.then(free, free); return saving; }
+  function save0() {
+    /* F6-1: rent added to the accounts goes to the business named as landlord; a name that is not one of your businesses would put it nowhere */
+    if (type === 'rent' && doc.acct) return NSStore.list('biz').then(function (L) {
+      var nm = String(doc.seller && doc.seller.name || '').trim().toLowerCase();
+      if ((L || []).some(function (b) { return String(b.name || '').trim().toLowerCase() === nm; })) return save1();
+      var msg = NS.t('w5.rentbiz', { n: doc.seller && doc.seller.name || '' });
+      NS.toast(msg, 'bad'); var f = $('#s-name', root); if (f) { showTab('edit'); f.focus(); }
+      throw new Error(msg);
+    });
+    return save1();
+  }
+  function save1() {
     var probs = validate();
     if (probs.length) {
       var f = $('#' + probs[0][0], root); NS.toast(probs[0][1], 'bad');
@@ -701,7 +716,7 @@
           if (!rec) return;
           if (act === 'open' || act === 'copy') { dlg.close(); openDoc(rec, act === 'copy'); }
           else if (act === 'del' && NS.closedMsg && NS.closedMsg(rec.seller && rec.seller.name, rec.date)) NS.toast(NS.closedMsg(rec.seller && rec.seller.name, rec.date), 'bad');   /* closed year (docmore.js) */
-          else if (act === 'del' && confirm(t('b1.cdel', { x: rec.no }))) return NSStore.del('doc', id).then(function () { if (editingId === id) { editingId = null; setStatus(); } renderHistory(); NS.toast(t('b1.binned')); }, function (err) { NS.toast(err.message, 'bad'); });
+          else if (act === 'del') return (NS.ask ? NS.ask(t('b1.cdel', { x: rec.no })) : Promise.resolve(window.confirm(t('b1.cdel', { x: rec.no })))).then(function (ok) { if (ok) return NSStore.del('doc', id).then(function () { if (editingId === id) { editingId = null; setStatus(); } renderHistory(); NS.toast(t('b1.binned')); }, function (err) { NS.toast(err.message, 'bad'); }); });
         });
       });
     }
