@@ -617,12 +617,14 @@
     var shut = NS.closedMsg && NS.closedMsg(doc.seller.name, doc.date);   /* closed financial year (docmore.js) */
     if (shut) { NS.toast(shut, 'bad'); return Promise.reject(new Error(shut)); }
     var tot = sums(doc).total;
-    if (doc.mode === 'cash' && type === 'receipt' && tot >= 200000 && !confirm(t('c.cash2l'))) return Promise.reject(new Error('cancel'));
-    if (doc.mode === 'cash' && type === 'voucher' && tot > 10000 && !confirm(t('c.cash10k'))) return Promise.reject(new Error('cancel'));
-    if (type === 'voucher' && num(doc.tdsRate) > 0 && !String(doc.buyer.pan || '').trim() && !confirm(t('c.nopan'))) return Promise.reject(new Error('cancel'));
-    return NSStore.list('doc').then(function (all) {
+    function yes(m) { return NS.ask ? NS.ask(m) : Promise.resolve(window.confirm(m)); }   /* the site's own question box */
+    var asks = [];
+    if (doc.mode === 'cash' && type === 'receipt' && tot >= 200000) asks.push(t('c.cash2l'));
+    if (doc.mode === 'cash' && type === 'voucher' && tot > 10000) asks.push(t('c.cash10k'));
+    if (type === 'voucher' && num(doc.tdsRate) > 0 && !String(doc.buyer.pan || '').trim()) asks.push(t('c.nopan'));
+    return asks.reduce(function (p, m) { return p.then(function () { return yes(m).then(function (ok) { if (!ok) throw new Error('cancel'); }); }); }, Promise.resolve()).then(function () { return NSStore.list('doc'); }).then(function (all) {
       var dup = all.filter(function (d) { return d.id !== editingId && d.type === type && key(d.no) === key(doc.no) && NS.fy(d.date) === NS.fy(doc.date) && key(d.seller && d.seller.name) === key(doc.seller.name); })[0];
-      if (dup && !confirm(tw('c.qdup', { no: doc.no }))) throw new Error('cancel');
+      if (dup) return yes(tw('c.qdup', { no: doc.no })).then(function (ok) { if (!ok) throw new Error('cancel'); });
     }).then(function () {
       var jobs = [], s = doc.seller, b = doc.buyer;
       /* rent receipts belong to a landlord, often not a business, so they are not added to My businesses */
@@ -762,7 +764,7 @@
       var open = new URLSearchParams(location.search).get('open');
       if (open && !NS.leaving) {
         history.replaceState(null, '', location.pathname + location.hash);
-        return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) { openDoc(rec, false); render(); } }).catch(function () {});
+        return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) { openDoc(rec, false); render(); } }).then(function () { if (NS.autoPrint && NS.autoPrint()) setTimeout(printDoc, 900); }).catch(function () {});
       }
       /* a draft of a saved record that no longer exists (deleted elsewhere) starts fresh; a new one takes a saved business */
       return NS.liveDraft(dr).then(function (live) {
