@@ -461,7 +461,7 @@
   }
   function signbox(top, bottom, img) { return '<div class="signbox">' + (top ? '<p>' + top + '</p>' : '') + (img ? '<img src="' + img + '" alt="">' : '<div class="sp"></div>') + '<p>' + bottom + '</p></div>'; }
   function stampBox(on) { return on ? '<div class="rstamp">' + P.stamp + '</div>' : ''; }
-  function made() { return '<p class="made">Made free at ' + esc(/^(localhost|127\.)/.test(location.hostname) ? (window.NS_CFG && NS_CFG.host || 'billing.niveshsahayak.in') : location.hostname.replace(/^www\./, '')) + '</p>'; }
+  function made() { return NS.creditLine('made'); }
   function payLine(d) {
     var m = P[MODEP[d.mode]] || P.other;
     return P.by + ' ' + m + (d.ref ? ' ' + (d.mode === 'cheque' ? 'no. ' : 'ref. ') + '<span class="mono">' + esc(d.ref) + '</span>' : '') + (d.refDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.refDate) : '') + (d.bank ? ' ' + P.drawn + ' ' + esc(d.bank) : '');
@@ -714,6 +714,15 @@
   function fileName() {
     return NAMES[type] + ' ' + (type === 'salary' ? month(doc.month) + ' ' : type === 'rent' ? month(doc.from) + (doc.to && doc.to !== doc.from ? ' to ' + month(doc.to) : '') + ' ' : '') + (doc.no || '') + (doc.buyer.name ? ' - ' + doc.buyer.name : '');
   }
+  function printAll(r) {
+    return NSStore.list('doc').then(function (all) {
+      var list = all.filter(function (x) { return x.type === type && (x.date || '') >= r[0] && (x.date || '') <= (r[1] || r[0]); }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || String(a.no || '').localeCompare(String(b.no || '')); });
+      if (!list.length) { NS.toast(t('conv.none'), 'bad'); return; }
+      if (typeof showTab === 'function') showTab('preview', true);
+      sheet.innerHTML = list.map(function (d) { var labels = T.copy && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : '']; return labels.map(function (l) { return sheetHtml(d, l); }).join(''); }).join('');
+      setTimeout(function () { window.print(); setTimeout(function () { draw(); }, 300); }, 500);
+    });
+  }
   function printDoc() {
     var old = document.title; document.title = fileName(); showTab('preview', true); draw(true); fit();
     setTimeout(function () { window.print(); document.title = old; draw(); }, 60);
@@ -760,6 +769,9 @@
            saved defaults arrive later and never overwrite what the visitor has started typing */
     if (!/[?&](open|from)=/.test(location.search)) root.classList.add('live');
     NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
+      /* ?printall=from,to: NSBiz's Print many vouchers */
+      var pall = new URLSearchParams(location.search).get('printall');
+      if (pall && !NS.leaving) { history.replaceState(null, '', location.pathname + location.hash); return printAll(pall.split(',')); }
       /* ?open=<id>: NSBiz opens a saved receipt or voucher here to print or share */
       var open = new URLSearchParams(location.search).get('open');
       if (open && !NS.leaving) {
