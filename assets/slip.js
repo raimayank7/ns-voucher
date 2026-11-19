@@ -57,6 +57,7 @@
       buyer: { name: '', addr: '', phone: '', gstin: '', pan: '' }, notes: c.notes || '', status: ''
     };
     if (type === 'receipt') Object.assign(d, { gstAdv: false, rate: '18', pos: '', sac: '', rv: '', rvDate: '', amount: '', tds: '', mode: 'cash', ref: '', refDate: '', bank: '', against: '', purpose: '', balance: '' });
+    vtSlip(d, C);   /* C-11 / C-14 */
     if (type === 'voucher') Object.assign(d, { tdsSec: '', tdsRate: '', rcm: false, rcmRate: '18', lines: [{ desc: '', head: '', amt: '' }], mode: 'cash', ref: '', refDate: '', prep: '', appr: '' });
     if (type === 'rent') Object.assign(d, { pan: '', prop: '', rent: '', from: m, to: m, mode: 'cash', ref: '', day: 'last' });
     /* WP-5: a new salary slip, rent receipt or petty cash book goes into the business's accounts unless unticked (a slip printed for
@@ -202,7 +203,8 @@
         card(t('s.lg.to'), '<div class="fg">' + field('b-name', t('s.toname'), { wide: true, ph: t('s.ph.toname'), hint: t('h.vname') }) + field('b-phone', t('l.phone'), { type: 'tel', mode: 'tel', ltr: 1 }) + field('b-addr', t('l.addr'), { type: 'textarea', wide: true }) + '</div>') +
         card(t('s.lg.lines'), '<div data-lines="lines"></div><div class="sums" id="ed-sums" aria-live="polite"></div>') +
         card(t('s.lg.tdsrcm'), '<div class="fg">' + field('d-tdsSec', t('s.tdssec'), { list: 'dl-tds', hint: t('s.h.tdssec') }) + field('d-tdsRate', t('s.tdsrate'), { mode: 'decimal', ltr: 1 }) +
-          field('b-pan', t('s.ppan'), { max: 10, ltr: 1, hint: t('s.h.ppan') }) + chk('d-rcm', t('s.rcm'), t('s.h.rcm')) + field('d-rcmRate', t('s.rcmrate'), { mode: 'decimal', ltr: 1, list: 'dl-rates' }) + '</div>') +
+          field('b-pan', t('s.ppan'), { max: 10, ltr: 1, hint: t('s.h.ppan') }) + chk('d-rcm', t('s.rcm'), t('s.h.rcm')) + field('d-rcmRate', t('s.rcmrate'), { mode: 'decimal', ltr: 1, list: 'dl-rates' }) +
+          field('d-rcmState', t('s.rcmst'), { type: 'select', opts: stateOpts(t('s.rcmst0')), hint: t('s.h.rcmst') }) + field('d-rcmItc', t('s.rcmitc'), { type: 'select', opts: [['ok', t('s.itc.ok')], ['blocked', t('s.itc.blocked')], ['ineligible', t('s.itc.inel')]] }) + '</div>')   /* r1-gst S-8: IGST when the supplier is in another state; credit blocked (s.17(5)) = cost */ +
         card(t('s.lg.sign'), '<div class="fg">' + field('d-prep', t('s.prep')) + field('d-appr', t('s.appr')) + '</div>');
     } else if (type === 'rent') {
       h += bizCard(t('s.lg.landlord')) +
@@ -216,7 +218,8 @@
           field('e-pan', t('s.pan'), { max: 10, ltr: 1 }) + field('e-uan', t('s.uan'), { max: 12, mode: 'numeric', ltr: 1 }) + field('e-esi', t('s.esi'), { ltr: 1 }) +
           field('e-bankName', t('l.bank')) + field('e-bankAcc', t('l.acc'), { mode: 'numeric', ltr: 1 }) + field('e-bankIfsc', t('l.ifsc'), { max: 11, ltr: 1 }) + '</div>') +
         card(t('s.lg.att'), '<div class="fg">' + field('d-days', t('s.days'), { mode: 'numeric', ltr: 1 }) + field('d-paid', t('s.paiddays'), { mode: 'decimal', ltr: 1, hint: t('s.h.paid') }) +
-          field('d-regime', t('s.regime'), { type: 'select', opts: [['new', t('s.r.new')], ['old', t('s.r.old')]] }) + field('d-ptState', t('s.ptstate'), { type: 'select', opts: stateOpts(t('s.pt.none')) }) + '</div>') +
+          field('d-regime', t('s.regime'), { type: 'select', opts: [['new', t('s.r.new')], ['old', t('s.r.old')]] }) + field('d-ptState', t('s.ptstate'), { type: 'select', opts: stateOpts(t('s.pt.none')) }) +
+          field('d-tdsPrev', t('s.tdsprev'), { mode: 'decimal', ltr: 1, hint: t('s.h.tdsprev') }) + '</div>') +
         card(t('s.lg.earn'), '<div data-lines="earn"></div>') +
         card(t('s.lg.ded'), '<div data-lines="ded"></div><button type="button" class="btn sm" data-pf>' + esc(t('s.pfbtn2')) + '</button><small class="hint">' + esc(t('s.h.pf2')) + '</small><div class="sums" id="ed-sums" aria-live="polite"></div>');
     } else if (type === 'petty') {
@@ -224,9 +227,11 @@
         card(t('s.lg.entries'), '<div data-lines="lines"></div><div class="sums" id="ed-sums" aria-live="polite"></div>') +
         card(t('s.lg.sign'), '<div class="fg">' + field('d-cashier', t('s.cashier')) + field('d-appr', t('s.appr')) + '</div>');
     }
-    h += acctCard() + lookCard() + '<datalist id="dl-rates">' + [5, 18, 40, 12, 28, 3, 1.5, 0.25, 0.1].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
+    if (window.NSCF) h += NSCF.slipEditor({ doc: function () { return doc; }, changed: function () { draw(); saveDraft(); } });   /* custom fields (ERP Round 2) */
+    h += acctCard() + lookCard() + '<datalist id="dl-rates">' + [5, 18, 40, 12, 3, 1.5, 0.25, 0.1].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
       '<datalist id="dl-tds">' + TDSSEC.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>' + '<datalist id="dl-heads">' + HEADS.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>';
     ed.innerHTML = h;
+    if (window.NSCF) NSCF.slipWire(ed);
     $$('[data-accent]', ed).forEach(function (b) { b.addEventListener('click', function () { doc.accent = b.getAttribute('data-accent'); fillForm(true); draw(); saveDraft(); }); });
     ['logo', 'sign'].forEach(function (k) {
       var inp = $('#s-' + k, ed); if (!inp) return;
@@ -235,11 +240,12 @@
     });
     var pf = $('[data-pf]', ed); if (pf) pf.addEventListener('click', fillPf);
     /* suggestions: businesses from the data home; people from the data home or from earlier documents of this kind */
+    if (type === 'rent') NS.suggest($('#s-name', ed), function () { return NSStore.list('biz').then(function (l) { return l.map(function (b) { return { seller: { name: b.name, addr: [b.addr, b.city].filter(Boolean).join(', '), phone: b.phone, pan: b.pan || '' } }; }); }); }, function (d) { return d.seller.name; }, function (d) { doc.seller = Object.assign(doc.seller, { name: d.seller.name, addr: d.seller.addr, phone: d.seller.phone, pan: d.seller.pan || '' }); fillForm(); draw(); saveDraft(); });   /* saved businesses (F6-1) */
     if (type === 'rent') suggestFromDocs($('#s-name', ed), function (d) { return d.seller.name; }, function (d) { doc.seller = Object.assign(doc.seller, { name: d.seller.name, addr: d.seller.addr, phone: d.seller.phone, pan: d.seller.pan || d.pan || '' }); });
     else NS.suggest($('#s-name', ed), function () { return NSStore.list('biz'); }, function (x) { return x.name; }, function (b) {
       doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; fillForm(); suggestNumber(true); draw(); saveDraft();
     });
-    if (type === 'receipt' || type === 'voucher') NS.suggest($('#b-name', ed), function () { return NSStore.list('party').then(function (l) { return NS.forBiz(l, doc.seller); }); }, function (x) { return x.name; }, function (p) {
+    if (type === 'receipt' || type === 'voucher') NS.suggest($('#b-name', ed), function () { return NSStore.list('party').then(function (l) { return NS.active(NS.forBiz(l, doc.seller)); }); }, function (x) { return x.name; }, function (p) {
       doc.buyer = { name: p.name, addr: p.addr || '', phone: p.phone || '', gstin: p.gstin || '' }; fillForm(); draw(); saveDraft();
     });
     if (type === 'rent') suggestFromDocs($('#b-name', ed), function (d) { return d.buyer.name; }, function (d) { doc.buyer.name = d.buyer.name; doc.prop = d.prop; doc.rent = d.rent; doc.mode = d.mode; });
@@ -285,6 +291,33 @@
     doc.erPf = pf ? String(pf) : ''; doc.erEsi = gross && gross <= 21000 ? String(Math.ceil(gross * 0.0325)) : '';
     ['erPf', 'erEsi'].forEach(function (k) { var e = document.getElementById('d-' + k); if (e) e.value = doc[k]; });
     renderLines(); draw(); saveDraft();
+    yearTds(gross, pf, ptm);
+  }
+  /* ERP round 2 (S-30): TDS from the whole tax year when the year projection (saltax.js) is on the page: this employee's slips saved
+     earlier in the tax year (pay and TDS so far) + this month + the same pay for the months left; the TDS still due is spread over
+     the months left. Without it the slip keeps the simple month x 12 estimate above. */
+  function yearTds(gross, pf, ptm) {
+    var TX = window.NSSalTax; if (!TX || !doc.month || !doc.buyer.name.trim()) return;
+    var ym = doc.month, fy = TX.fyOf(ym), k = key(doc.buyer.name), b = key(doc.seller && doc.seller.name);
+    NSStore.list('doc').then(function (all) {
+      var paid = 0, tds = 0, pfY = 0, ptY = 0, had = {}, prevT = '', prevM = '';
+      all.forEach(function (d) {
+        if (d.type !== 'salary' || d.id === editingId || !d.month || d.month >= ym || TX.fyOf(d.month) !== fy || key(d.buyer && d.buyer.name) !== k || key(d.seller && d.seller.name) !== b) return;
+        had[d.month] = 1;
+        if (String(d.tdsPrev || '').trim() !== '' && d.month > prevM) { prevM = d.month; prevT = d.tdsPrev; }   /* the newest earlier slip's "TDS already cut outside" */
+        (d.earn || []).forEach(function (l) { paid += num(l.amt); });
+        (d.ded || []).forEach(function (l) { var v = num(l.amt); if (/TDS|income.?tax/i.test(l.desc)) tds += v; else if (/PF|provident/i.test(l.desc)) pfY += v; else if (/professional/i.test(l.desc)) ptY += v; });
+      });
+      /* months of the year before this one with no slip here (paid before NSBiz was used): counted at this month's pay */
+      var doj = String(doc.emp && doc.emp.doj || '').slice(0, 7);
+      for (var m = fy.slice(0, 4) + '-04'; m < ym; m = nextYm(m)) if (!had[m] && !(doj && doj > m)) { paid += gross; pfY += pf; ptY += ptm; }
+      /* TDS cut this tax year outside this maker (an earlier employer, or months paid before NSBiz): typed on the slip, else taken
+         from this employee's newest earlier slip of the year, and shown in the box so it travels to the next month's slip */
+      if (String(doc.tdsPrev || '').trim() === '' && prevT !== '') { doc.tdsPrev = String(prevT); var tp = document.getElementById('d-tdsPrev'); if (tp) tp.value = doc.tdsPrev; }
+      var left = 12 - TX.monthNo(ym) + 1, y = TX.year({ ym: ym, regime: doc.regime, month: gross, paidYtd: paid, tdsYtd: tds + num(doc.tdsPrev), future: gross * (left - 1), pfEe: pfY + pf * left, pt: ptY + ptm * left });
+      var l = doc.ded.filter(function (x) { return /TDS|income tax/i.test(x.desc); })[0]; if (!l) return;
+      l.amt = y.perMonth ? String(y.perMonth) : ''; renderLines(); draw(); saveDraft();
+    }).catch(function () {});
   }
 
   /* professional tax a month by state code, for monthly gross pay g (last checked 4 Nov 2026; null = not in this table, type it yourself) */
@@ -319,7 +352,7 @@
   var SMAP = { 's-name': 'name', 's-addr': 'addr', 's-gstin': 'gstin', 's-phone': 'phone', 's-pan': 'pan', 's-state': 'state' };
   var BMAP = { 'b-name': 'name', 'b-addr': 'addr', 'b-phone': 'phone', 'b-gstin': 'gstin', 'b-pan': 'pan' };
   var EMAP = { 'e-code': 'code', 'e-desig': 'desig', 'e-dept': 'dept', 'e-doj': 'doj', 'e-pan': 'pan', 'e-uan': 'uan', 'e-esi': 'esi', 'e-bankName': 'bankName', 'e-bankAcc': 'bankAcc', 'e-bankIfsc': 'bankIfsc' };
-  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'regime', 'ptState', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper', 'design', 'acct', 'erPf', 'erEsi', 'payDate', 'payMode'];
+  var DKEYS = ['gstAdv', 'rate', 'pos', 'sac', 'rv', 'rvDate', 'tdsSec', 'tdsRate', 'rcm', 'rcmRate', 'rcmState', 'rcmItc', 'regime', 'ptState', 'tdsPrev', 'kind', 'no', 'date', 'amount', 'tds', 'mode', 'ref', 'refDate', 'bank', 'against', 'purpose', 'balance', 'prep', 'appr', 'prop', 'rent', 'from', 'to', 'day', 'month', 'days', 'paid', 'opening', 'cashier', 'notes', 'copies', 'paper', 'design', 'acct', 'erPf', 'erEsi', 'payDate', 'payMode'];
   function fillForm(onlyLook) {
     var ed = $('#ed', root);
     if (!onlyLook) {
@@ -336,6 +369,7 @@
     var kh = $('#kind-hint', ed); if (kh) kh.textContent = t('kh.' + doc.kind);
     $$('[data-for]', ed).forEach(function (f) { f.hidden = f.getAttribute('data-for').split(' ').indexOf(doc.kind) < 0 || (f.querySelector('#d-gstAdv') ? false : !!f.querySelector('#d-rate, #d-pos, #d-sac, #d-advnote') && !doc.gstAdv); });
     if (!onlyLook && type === 'receipt') billsSoon();
+    if (!onlyLook && window.NSCF) NSCF.slipFill();
   }
   /* receipt: the customer's unpaid bills from the data home (NSBooks.bills). Ticking bills fills "Against", the amount
      (when empty) and the balance still due, and links the money to those bills (alloc), as App > Money received does */
@@ -352,6 +386,7 @@
     var box = $('#rb-bills', root); if (!box) return;
     var nm = key(doc.buyer && doc.buyer.name), biz = doc.seller && doc.seller.name;
     if (type !== 'receipt' || doc.kind !== 'pay' || !nm || !String(biz || '').trim() || !window.NSBooks) { box.innerHTML = ''; return; }
+    if (!NS.bizModeOf(doc.seller, CFG).billwise) { if (doc.alloc) { delete doc.alloc; } box.innerHTML = '<p class="soft">' + esc(t('nx.bwoff')) + '</p>'; return; }   /* ERP C-9: bill-wise off */
     NSStore.list('doc').then(function (all) {
       var open = NSBooks.bills(all.filter(function (d) { return d.id !== editingId; }), biz, nm).bills.filter(function (b) { return b.side === 'recv'; });
       if (key(doc.buyer.name) !== nm) return;
@@ -411,31 +446,47 @@
       if (id === 'b-name' || id === 's-name' || id === 'd-kind') { if (id !== 'd-kind' && doc.alloc) { delete doc.alloc; doc.against = ''; doc.balance = ''; var a2 = $('#d-against', root), b2 = $('#d-balance', root); if (a2) a2.value = ''; if (b2) b2.value = ''; } billsSoon(); }
     }
     if (id === 'b-pan') el.value = el.value.toUpperCase();
+    if (type === 'voucher' && /^(d-tdsSec|d-tdsRate|b-pan)$/.test(id)) tdsHint(id);
     if ((id === 'd-date' || id === 'd-month') && e.type === 'change') suggestNumber(false);
     if (id === 'd-month' && e.type === 'change') attDays(true);
     draw(); saveDraft();
   }
 
+  /* TDS on a voucher (F4-9): picking a section fills its usual rate; contractors pay 1% (individual or HUF, PAN 4th letter P or H) or 2% (others) */
+  var tdsAuto = '';
+  function tdsHint(id) {
+    var sec = String(doc.tdsSec || ''), pan = String(doc.buyer.pan || '').toUpperCase(), c4 = /^[A-Z]{5}\d{4}[A-Z]$/.test(pan) ? pan[3] : '';
+    var con = /194C|Sl\. 6\(i\)/.test(sec), want = con ? (c4 ? (/[PH]/.test(c4) ? 1 : 2) : null) : /194J/.test(sec) ? 10 : /194I/.test(sec) ? 10 : /194H/.test(sec) ? 2 : /194Q/.test(sec) ? 0.1 : null;
+    var ri = $('#d-tdsRate', root);
+    var free = !String(doc.tdsRate || '').trim() || String(doc.tdsRate) === tdsAuto;   /* empty, or still the rate this tool filled in: a new section or PAN may change it; a typed rate stays */
+    if (id === 'd-tdsSec' && want != null && free) { doc.tdsRate = tdsAuto = String(want); if (ri) ri.value = doc.tdsRate; }
+    if (id === 'b-pan' && con && want != null && free) { doc.tdsRate = tdsAuto = String(want); if (ri) ri.value = doc.tdsRate; }
+    if (!ri) return; var f = ri.closest('.f') || ri.parentNode, w = $('[data-tdsw]', f);
+    var bad = con && c4 && doc.tdsRate !== '' && +doc.tdsRate !== want;
+    if (!bad) { if (w) w.remove(); return; }
+    if (!w) { w = NS.el('p', { 'class': 'hint warn', 'data-tdsw': '' }); f.appendChild(w); }
+    w.textContent = t('w5.tds194c', { c: c4, r: want });
+  }
+
   /* ---------- numbering: PREFIX/26-27/001, one series per business (rent: per landlord) and financial year ---------- */
+  /* the series of this slip through the one engine (core.js NS.nextNo, ERP A-6); a refund voucher counts in its own RFV series */
+  function nxOpts() {
+    var C = NS.cfgFor(CFG, doc.seller), isRef = type === 'receipt' && doc.kind === 'ref';
+    var o = { type: type, sub: doc.vt || '', seller: doc.seller.name || '', date: doc.date, cfg: C, def: T.prefix, skip: editingId, match: type === 'receipt' ? function (d) { return (d.kind === 'ref') === isRef; } : null };
+    o.series = isRef ? NS.seriesOf(C, 'refund', '', doc.vt, { def: 'RFV' }) : NS.seriesOf(C, type, '', doc.vt, o);
+    return o;
+  }
   function suggestNumber(force) {
     if (editingId && !force) return Promise.resolve();
-    var C = NS.cfgFor(CFG, doc.seller), inv = C.invoice || {}, c = Object.assign({ digits: inv.digits, fy: inv.fy }, C[type] || {}), fy = NS.fy(doc.date), short = fy.slice(2, 4) + '-' + fy.slice(5);
-    /* a refund voucher (s.31(3)(e)) has its own series, RFV/26-27/001 (round C: it took the receipt series) */
     var isRef = type === 'receipt' && doc.kind === 'ref';
-    if (isRef) c = Object.assign({}, c, { prefix: (C.refund || {}).prefix != null ? C.refund.prefix : 'RFV' });
-    var pre = String(c.prefix != null ? c.prefix : T.prefix).trim().replace(/[^A-Za-z0-9\/\-]/g, '');
-    var prefix = (pre ? pre + '/' : '') + (c.fy === false ? '' : short + '/'), digits = Math.min(6, Math.max(1, +c.digits || 3));
     return Promise.all([NSStore.list('doc'), NSStore.sfTag()]).then(function (r) {
-      var all = r[0]; prefix += r[1];   /* shared folder mode: this computer's letter */
-      var k = key(doc.seller.name), max = 0, nos = [];
-      all.forEach(function (d) {
-        if (d.type !== type || d.id === editingId || NS.fy(d.date) !== fy || key(d.seller && d.seller.name) !== k) return;
-        if (type === 'receipt' && (d.kind === 'ref') !== isRef) return;
-        var m = String(d.no || '').match(/(\d+)\s*$/); if (m) { max = Math.max(max, +m[1]); nos.push(d.no); }
-      });
+      var o = nxOpts(); o.tag = r[1];   /* shared folder mode: this computer's letter */
+      var x = NS.nextNo(r[0], o), k = key(doc.seller.name);
+      NS.noBox($('#d-no', root), x.series);
       if (force || !doc.no || doc.no === lastAuto || /^[A-Z]+\/\d\d-\d\d\/[A-Z]{0,3}\d+$/.test(doc.no)) {
-        return NSStore.sfClaim({ scope: type + '|' + k + '|' + (isRef ? 'ref' : ''), prefix: prefix, digits: digits, nos: nos }).then(function (c) {
-          doc.no = lastAuto = c || prefix + String(max + 1).padStart(digits, '0');
+        if (x.manual) { doc.no = lastAuto = ''; var n0 = $('#d-no', root); if (n0) n0.value = ''; draw(); return; }
+        return (x.suffix || x.series.restart !== 'year' ? Promise.resolve(null) : NSStore.sfClaim({ scope: type + '|' + k + '|' + (isRef ? 'ref' : '') + (doc.vt ? '|' + doc.vt : ''), prefix: x.head, digits: x.width, nos: x.nos })).then(function (c) {
+          doc.no = lastAuto = c || x.no;
           var n = $('#d-no', root); if (n) n.value = doc.no;
           draw();
         });
@@ -466,11 +517,11 @@
     var m = P[MODEP[d.mode]] || P.other;
     return P.by + ' ' + m + (d.ref ? ' ' + (d.mode === 'cheque' ? 'no. ' : 'ref. ') + '<span class="mono">' + esc(d.ref) + '</span>' : '') + (d.refDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.refDate) : '') + (d.bank ? ' ' + P.drawn + ' ' + esc(d.bank) : '');
   }
-  function sheetOpen(d, extra) { return '<div class="sh slip ' + type + ' d-' + esc(d.design || 'classic') + (d.paper === 'a5' ? ' a5' : '') + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">'; }
+  function sheetOpen(d, extra) { return '<div class="sh slip ' + type + ' d-' + esc(d.design || 'classic') + (d.paper === 'a5' ? ' a5' : '') + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">' + (d.cancelled ? '<div class="stamp cx-stamp">CANCELLED</div>' : ''); }   /* A-3 */
 
   function receiptHtml(d, label) {
     var o = sums(d), s = d.seller, name = d.buyer.name ? '<b>' + esc(d.buyer.name) + '</b>' : '<span class="ph">customer name</span>';
-    if (/^th/.test(d.paper)) return '<div class="sh th ' + esc(d.paper) + '" lang="en-IN" dir="ltr"><h2>' + esc(s.name || '') + '</h2>' + (s.addr ? '<p>' + esc(s.addr).replace(/\n/g, '<br>') + '</p>' : '') + (s.gstin ? '<p>' + P.gstin + ': <b class="mono">' + esc(s.gstin) + '</b></p>' : '') +
+    if (/^th/.test(d.paper)) return '<div class="sh th ' + esc(d.paper) + '" lang="en-IN" dir="ltr">' + (d.cancelled ? '<p class="cx-line">*** CANCELLED ***</p>' : '') + '<h2>' + esc(s.name || '') + '</h2>' + (s.addr ? '<p>' + esc(s.addr).replace(/\n/g, '<br>') + '</p>' : '') + (s.gstin ? '<p>' + P.gstin + ': <b class="mono">' + esc(s.gstin) + '</b></p>' : '') +
       '<p class="dt">' + T.title + '</p>' + (label ? '<p class="copy">' + P[label] + '</p>' : '') +
       '<table class="kv"><tr><th>' + P.rno + '</th><td class="mono">' + esc(d.no) + '</td></tr><tr><th>' + P.date + '</th><td>' + NS.fmtDate(d.date) + '</td></tr></table>' +
       '<p class="nt1">' + P.recfrom + ' ' + name + ' ' + payLine(d) + (d.against ? ', ' + P.against + ' ' + esc(d.against) : '') + (d.purpose ? ', ' + P.towards + ' ' + esc(d.purpose) : '') + '.</p>' +
@@ -546,6 +597,9 @@
       '<div class="signs">' + signbox('', P.cashier + (d.cashier ? ': ' + esc(d.cashier) : '')) + signbox('', P.appr + (d.appr ? ': ' + esc(d.appr) : ''), s.sign) + '</div>' + made() + '</div>';
   }
   function sheetHtml(d, label) {
+    return window.NSCF ? NSCF.slipPrint(d, sheetHtml0(d, label)) : sheetHtml0(d, label);   /* custom fields printed above the signatures (ERP Round 2) */
+  }
+  function sheetHtml0(d, label) {
     return type === 'receipt' ? receiptHtml(d, label) : type === 'voucher' ? voucherHtml(d) : type === 'rent' ? rentHtml(d) : type === 'salary' ? salaryHtml(d) : pettyHtml(d);
   }
   function draw(all) {
@@ -631,6 +685,7 @@
     }
     var shut = NS.closedMsg && NS.closedMsg(doc.seller.name, doc.date);   /* closed financial year (docmore.js) */
     if (shut) { NS.toast(shut, 'bad'); return Promise.reject(new Error(shut)); }
+    var cfb = window.NSCF && NSCF.slipBlock(doc); if (cfb) { NS.toast(cfb, 'bad'); return Promise.reject(new Error(cfb)); }   /* required custom fields */
     var tot = sums(doc).total;
     function yes(m) { return NS.ask ? NS.ask(m) : Promise.resolve(window.confirm(m)); }   /* the site's own question box */
     var asks = [];
@@ -638,8 +693,9 @@
     if (doc.mode === 'cash' && type === 'voucher' && tot > 10000) asks.push(t('c.cash10k'));
     if (type === 'voucher' && num(doc.tdsRate) > 0 && !String(doc.buyer.pan || '').trim()) asks.push(t('c.nopan'));
     return asks.reduce(function (p, m) { return p.then(function () { return yes(m).then(function (ok) { if (!ok) throw new Error('cancel'); }); }); }, Promise.resolve()).then(function () { return NSStore.list('doc'); }).then(function (all) {
-      var dup = all.filter(function (d) { return d.id !== editingId && d.type === type && key(d.no) === key(doc.no) && NS.fy(d.date) === NS.fy(doc.date) && key(d.seller && d.seller.name) === key(doc.seller.name); })[0];
-      if (dup) return yes(tw('c.qdup', { no: doc.no })).then(function (ok) { if (!ok) throw new Error('cancel'); });
+      var o = nxOpts(), pb = NS.noProblem(all, Object.assign({}, doc, { id: editingId || '_new' }), o);   /* one check for every type (A-6) */
+      if (pb && pb.block) { NS.toast(pb.msg, 'bad'); var nf = $('#d-no', root); if (nf) { showTab('edit'); nf.focus(); } throw new Error('cancel'); }
+      if (pb) return yes(tw('c.qdup', { no: doc.no })).then(function (ok) { if (!ok) throw new Error('cancel'); });
     }).then(function () {
       var jobs = [], s = doc.seller, b = doc.buyer;
       /* rent receipts belong to a landlord, often not a business, so they are not added to My businesses */
@@ -667,9 +723,15 @@
     var seller = doc.seller; doc = blank(); editingId = null; doc.seller = seller;
     fillForm(); draw(); saveDraft(); setStatus();
     /* the seller of the last document may have been deleted since: a new document takes a saved business */
-    (type !== 'rent' ? NS.liveSeller(seller, CFG, true) : Promise.resolve(null)).then(function (b) { if (b) { setSeller(b); fillForm(); draw(); } return suggestNumber(true); }).then(saveDraft, function () {});
+    (type !== 'rent' ? NS.liveSeller(seller, CFG, true) : Promise.resolve(null)).then(function (b) { if (b || type === 'rent' || !seller || !seller.name) return b; return NSStore.list('biz').then(function (l) { return l.filter(function (x) { return key(x.name) === key(seller.name); })[0] || null; }); }).then(function (b) { if (b) {   /* F6-4 */ setSeller(b); fillForm(); draw(); } return suggestNumber(true); }).then(saveDraft, function () {});
   }
-  function setSeller(b) { doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; }
+  function setSeller(b) { doc.seller = Object.assign(blank().seller, b); delete doc.seller.id; delete doc.seller.created; delete doc.seller.updated; if (!editingId) { vtSlip(doc, NS.cfgFor(CFG, doc.seller)); setTimeout(function () { fillForm(); draw(); }, 0); } }
+  /* a new slip takes its voucher type's copies, paper, design and notes (C-11); the business is known only once the seller is set */
+  function vtSlip(d, C) {
+    var vc = NS.vtCfg(C, type, '', d.vt || '');
+    NS.vtApply(d, vc, ['design'].concat(T.copy ? ['copies'] : [], (T.papers || []).indexOf(vc.paper) >= 0 ? ['paper'] : [], !d.notes ? ['notes'] : []));
+    if (d.copies > 2) d.copies = 2;
+  }
   function openDoc(rec, asCopy) {
     doc = Object.assign(blank(), JSON.parse(JSON.stringify(rec)));
     delete doc.id; delete doc.created; delete doc.updated; delete doc.total;
@@ -678,7 +740,7 @@
     if (asCopy) {
       doc.date = NS.today();
       /* a copy of last month's slip or book moves on by one period */
-      if (type === 'salary') { doc.month = nextYm(doc.month || ym(NS.today())); doc.days = ''; doc.paid = ''; doc.payDate = ''; }
+      if (type === 'salary') { doc.month = nextYm(doc.month || ym(NS.today())); doc.days = ''; doc.paid = ''; doc.payDate = ''; if (/-04$/.test(doc.month)) doc.tdsPrev = ''; }   /* a new tax year starts with nothing cut */
       if (type === 'rent') { var span = months(doc.from, doc.to).length || 1, f = nextYm(doc.to || doc.from); doc.from = f; doc.to = f; for (var i = 1; i < span; i++) doc.to = nextYm(doc.to); }
       if (type === 'petty') { var close = sums(doc).closing; doc.opening = String(close); doc.from = NS.today(); doc.to = NS.today(); doc.lines = [{ date: NS.today(), vno: '', desc: '', head: '', recd: '', paid: '' }]; }
     }
@@ -699,6 +761,7 @@
         var when = type === 'salary' ? month(d.month) : type === 'rent' ? month(d.from) + (d.to && d.to !== d.from ? ' – ' + month(d.to) : '') : NS.fmtDate(d.date);
         return '<li><div><b class="mono">' + esc(d.no) + '</b> · ' + esc(when) + '<br><span>' + esc(d.buyer && d.buyer.name || d.seller && d.seller.name || '') + '</span> · <b>' + NS.money(d.total || 0) + '</b></div>' +
           '<div class="row"><button type="button" class="btn sm" data-h="open" data-id="' + d.id + '">' + esc(t('h.open')) + '</button><button type="button" class="btn sm" data-h="copy" data-id="' + d.id + '">' + esc(t(type === 'salary' || type === 'rent' || type === 'petty' ? 's.h.next' : 'h.copy')) + '</button>' +
+          (NS.cancelDoc && d.no && (d.cancelled || window.NSBooks && NSBooks.role(d)) ? '<button type="button" class="btn sm" data-h="cx" data-id="' + d.id + '">' + esc(t(d.cancelled ? 'au.uncxb' : 'au.cxb')) + '</button>' : '') +   /* A-3 */
           '<button type="button" class="btn sm danger" data-h="del" data-id="' + d.id + '">' + esc(t('h.del')) + '</button></div></li>';
       }).join('') : '<li class="empty">' + esc(t(v ? 'h.nomatch' : 'h.none')) + '</li>';
     });
@@ -715,6 +778,7 @@
         NSStore.get('doc', id).then(function (rec) {
           if (!rec) return;
           if (act === 'open' || act === 'copy') { dlg.close(); openDoc(rec, act === 'copy'); }
+          else if (act === 'cx') return NS.cancelDoc(rec).then(function () { renderHistory(); });   /* A-3 */
           else if (act === 'del' && NS.closedMsg && NS.closedMsg(rec.seller && rec.seller.name, rec.date)) NS.toast(NS.closedMsg(rec.seller && rec.seller.name, rec.date), 'bad');   /* closed year (docmore.js) */
           else if (act === 'del') return (NS.ask ? NS.ask(t('b1.cdel', { x: rec.no })) : Promise.resolve(window.confirm(t('b1.cdel', { x: rec.no })))).then(function (ok) { if (ok) return NSStore.del('doc', id).then(function () { if (editingId === id) { editingId = null; setStatus(); } renderHistory(); NS.toast(t('b1.binned')); }, function (err) { NS.toast(err.message, 'bad'); }); });
         });
@@ -775,7 +839,9 @@
     if (dr) { doc = Object.assign(blank(), dr.doc); editingId = dr.id || null; }
     function render() { buildEditor(); fillForm(); draw(); setStatus(); labelButtons(); if (histOpen) renderHistory(); series(); }
     /* "Change number series" under the number box */
-    function series() { NS.seriesLink($('#d-no', root), { type: type, biz: function () { return doc.seller; }, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } }); }
+    function series() { NS.seriesLink($('#d-no', root), { type: type, biz: function () { return doc.seller; }, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } });
+      NS.subPick($('#d-no', root), { type: type, cfg: function () { return NS.cfgFor(CFG, doc.seller); }, get: function () { return doc.vt || ''; }, saved: function () { return !!editingId; },   /* A-7 */
+        set: function (id) { if (id) doc.vt = id; else delete doc.vt; if (!editingId) { vtSlip(doc, NS.cfgFor(CFG, doc.seller)); fillForm(); } suggestNumber(true).then(saveDraft); } }); }
     render();
     document.addEventListener('ns-lang', render);
     var typed = false;
@@ -783,7 +849,7 @@
     /* the form shows at once (it used to wait for the data home, up to 6 s on a first visit, while the preview already showed);
            saved defaults arrive later and never overwrite what the visitor has started typing */
     if (!/[?&](open|from)=/.test(location.search)) root.classList.add('live');
-    NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; }, function () {}); }).then(function () {
+    NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; if (type === 'receipt') billsSoon(); series(); }, function () {}); }).then(function () {   /* the bill list follows the bill-wise switch (ERP C-9) */
       /* ?printall=from,to: NSBiz's Print many vouchers */
       var pall = new URLSearchParams(location.search).get('printall');
       if (pall && !NS.leaving) { history.replaceState(null, '', location.pathname + location.hash); return printAll(pall.split(',')); }
@@ -811,10 +877,10 @@
     $$('[data-do]').forEach(function (b) {
       b.addEventListener('click', function () {
         var a = b.getAttribute('data-do');
-        if (a === 'save') save().catch(function () {});
+        if (a === 'save') save().then(function () { NS.vtAfterSave(NS.vtCfg(NS.cfgFor(CFG, doc.seller), type, '', doc.vt), printDoc, shareDoc); }).catch(function () {});
         else if (a === 'print') printDoc();
         else if (a === 'share') shareDoc();
-        else if (a === 'new') { if (!editingId && sums(doc).total && !confirm(tw('c.new'))) return; startNew(); }
+        else if (a === 'new') { if (!editingId && sums(doc).total && !NS.okSync(tw('c.new'))) return; startNew(); }
         else if (a === 'history') openHistory();
       });
     });
@@ -823,7 +889,7 @@
     if (window.ResizeObserver) new ResizeObserver(fit).observe($('.pv', root));
     window.addEventListener('beforeprint', fit);
     document.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save().catch(function () {}); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save().then(function () { NS.vtAfterSave(NS.vtCfg(NS.cfgFor(CFG, doc.seller), type, '', doc.vt), printDoc, shareDoc); }).catch(function () {}); }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') { e.preventDefault(); printDoc(); }
     });
   }
