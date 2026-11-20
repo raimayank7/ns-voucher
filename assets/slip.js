@@ -602,7 +602,9 @@
   function sheetHtml0(d, label) {
     return type === 'receipt' ? receiptHtml(d, label) : type === 'voucher' ? voucherHtml(d) : type === 'rent' ? rentHtml(d) : type === 'salary' ? salaryHtml(d) : pettyHtml(d);
   }
+  var paHold = false;   /* Print many vouchers: nothing redraws over the documents until printing is done */
   function draw(all) {
+    if (paHold) return;
     if (!sheet) return;
     var d = doc, o = sums(d);
     var labels = T.copy && all === true && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : ''];
@@ -797,9 +799,9 @@
     return NSStore.list('doc').then(function (all) {
       var list = all.filter(function (x) { return x.type === type && (x.date || '') >= r[0] && (x.date || '') <= (r[1] || r[0]); }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || String(a.no || '').localeCompare(String(b.no || '')); });
       if (!list.length) { NS.toast(t('conv.none'), 'bad'); return; }
-      if (typeof showTab === 'function') showTab('preview', true);
+      if (typeof showTab === 'function') showTab('preview', true); paHold = true;
       sheet.innerHTML = list.map(function (d) { var labels = T.copy && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : '']; return labels.map(function (l) { return sheetHtml(d, l); }).join(''); }).join('');
-      setTimeout(function () { window.print(); setTimeout(function () { draw(); }, 300); }, 500);
+      setTimeout(function () { window.print(); setTimeout(function () { paHold = false; draw(); }, 300); }, 500);
     });
   }
   function printDoc() {
