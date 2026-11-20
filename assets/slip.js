@@ -717,6 +717,8 @@
     }).catch(function (e) { if (e.message !== 'cancel') NS.toast(t('nosave', { e: e.message }), 'bad'); throw e; });
   }
   function setStatus() {
+    NS.docNav && NS.docNav(root, { current: function () { return editingId; }, open: function (r) { openDoc(r); }, list: openHistory,
+      mine: function (d) { var me = key(doc.seller && doc.seller.name); return d.type === type && (!me || !d.seller || key(d.seller.name) === me); } });
     var st = $('#tool-status', root); if (st) st.textContent = editingId ? tw('st.edit', { no: doc.no }) : tw('st.new');
     /* shared folder mode: another computer has this bill open right now */
     var eid = editingId; NSStore.sfEditing(editingId, doc.no).then(function (o) { if (o && st && eid === editingId) st.textContent = tw('st.edit', { no: doc.no }) + ' \u00b7 ' + NS.t('sfd.editing', { who: o.who || o.name }); });
