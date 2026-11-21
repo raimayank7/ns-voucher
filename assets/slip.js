@@ -753,7 +753,24 @@
   }
 
   /* ---------- history ---------- */
-  var histOpen = false;
+  var histOpen = false, histRows = [];
+  /* pdf-lib: "Download these as one PDF": the slips the list shows (after the search), oldest first, in one PDF file */
+  function histPdfBtn(dlg, n) {
+    if (!NS.manyPdf) return;
+    var b = $('[data-hist-pdf]', dlg);
+    if (!b) {
+      b = NS.el('button', { type: 'button', 'class': 'btn sm', 'data-hist-pdf': '', 'data-ic': 'download' }, '');
+      var l = $('[data-hist-list]', dlg); l.parentNode.insertBefore(b, l);
+      b.addEventListener('click', function () {
+        var rows = histRows.slice().sort(function (a, c) { return (a.date || '').localeCompare(c.date || '') || String(a.no || '').localeCompare(String(c.no || '')); });
+        if (!rows.length) return;
+        (rows.length > 60 && NS.ask ? NS.ask(t('pdf.many', { n: rows.length })) : Promise.resolve(true)).then(function (ok) {
+          if (!ok) return; dlg.close(); paList(rows, true, NAMES[type] + ' (' + rows.length + ') ' + NS.today());
+        });
+      });
+    }
+    b.textContent = t('pdf.onepdf', { n: n }); b.disabled = !n;
+  }
   function renderHistory() {
     var dlg = $('#ns-history'); if (!dlg) return;
     var list = $('[data-hist-list]', dlg), q = $('[data-hist-q]', dlg);
@@ -761,6 +778,7 @@
       var v = key(q.value);
       var rows = all.filter(function (d) { return d.type === type; }).filter(function (d) { return !v || [d.no, d.buyer && d.buyer.name, d.seller && d.seller.name].join(' ').toLowerCase().indexOf(v) >= 0; })
         .sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.updated || 0) - (a.updated || 0); });
+      histRows = rows; histPdfBtn(dlg, rows.length);
       list.innerHTML = rows.length ? rows.map(function (d) {
         var when = type === 'salary' ? month(d.month) : type === 'rent' ? month(d.from) + (d.to && d.to !== d.from ? ' – ' + month(d.to) : '') : NS.fmtDate(d.date);
         return '<li><div><b class="mono">' + esc(d.no) + '</b> · ' + esc(when) + '<br><span>' + esc(d.buyer && d.buyer.name || d.seller && d.seller.name || '') + '</span> · <b>' + NS.money(d.total || 0) + '</b></div>' +
@@ -797,14 +815,21 @@
   function fileName() {
     return NAMES[type] + ' ' + (type === 'salary' ? month(doc.month) + ' ' : type === 'rent' ? month(doc.from) + (doc.to && doc.to !== doc.from ? ' to ' + month(doc.to) : '') + ' ' : '') + (doc.no || '') + (doc.buyer.name ? ' - ' + doc.buyer.name : '');
   }
-  function printAll(r) {
+  function printAll(r, asPdf) {
     return NSStore.list('doc').then(function (all) {
       var list = all.filter(function (x) { return x.type === type && (x.date || '') >= r[0] && (x.date || '') <= (r[1] || r[0]); }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || String(a.no || '').localeCompare(String(b.no || '')); });
       if (!list.length) { NS.toast(t('conv.none'), 'bad'); return; }
-      if (typeof showTab === 'function') showTab('preview', true); paHold = true;
-      sheet.innerHTML = list.map(function (d) { var labels = T.copy && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : '']; return labels.map(function (l) { return sheetHtml(d, l); }).join(''); }).join('');
-      setTimeout(function () { window.print(); setTimeout(function () { paHold = false; draw(); }, 300); }, 500);
+      return paList(list, asPdf, NAMES[type] + ' ' + r[0] + ' to ' + (r[1] || r[0]));
     });
+  }
+  /* the slips one after another, then the print window, or (asPdf) one PDF: each slip drawn like Share as PDF, joined with pdf-lib */
+  function paList(list, asPdf, title) {
+    if (typeof showTab === 'function') showTab('preview', true); paHold = true;
+    sheet.innerHTML = list.map(function (d, i) { var labels = T.copy && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : '']; return '<div class="pa-doc" data-pa="' + i + '">' + labels.map(function (l) { return sheetHtml(d, l); }).join('') + '</div>'; }).join('');
+    if (asPdf && NS.manyPdf) return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+      return NS.manyPdf(list.map(function (d, i) { return { nodes: $$('.sh', $('[data-pa="' + i + '"]', sheet)), paper: d.paper }; }), title);
+    }).then(function () { paHold = false; draw(); });
+    setTimeout(function () { window.print(); setTimeout(function () { paHold = false; draw(); }, 300); }, 500);
   }
   function printDoc() {
     var old = document.title; document.title = fileName(); showTab('preview', true); draw(true); fit();
@@ -856,7 +881,7 @@
     NSStore.ready().then(function () { return NS.loadCfg().then(function (c) { CFG = c || {}; if (type === 'receipt') billsSoon(); series(); }, function () {}); }).then(function () {   /* the bill list follows the bill-wise switch (ERP C-9) */
       /* ?printall=from,to: NSBiz's Print many vouchers */
       var pall = new URLSearchParams(location.search).get('printall');
-      if (pall && !NS.leaving) { history.replaceState(null, '', location.pathname + location.hash); return printAll(pall.split(',')); }
+      if (pall && !NS.leaving) { var asPdf = new URLSearchParams(location.search).get('pdf') === '1'; history.replaceState(null, '', location.pathname + location.hash); return printAll(pall.split(','), asPdf); }   /* &pdf=1: one PDF (pdftools.js) */
       /* ?open=<id>: NSBiz opens a saved receipt or voucher here to print or share */
       var open = new URLSearchParams(location.search).get('open');
       if (open && !NS.leaving) {
