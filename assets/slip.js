@@ -18,7 +18,7 @@
   var TDSSEC = ['393(1) Sl. 6(i) (old 194C) contractors', '393(1) Sl. 6(iii) (old 194J) professional or technical fees', '393(1) Sl. 2 (old 194I) rent', '393(1) Sl. 1(ii) (old 194H) commission or brokerage', '393(1) Sl. 8(ii) (old 194Q) purchase of goods'];
   var MODES = ['cash', 'upi', 'cheque', 'bank', 'card', 'dd', 'other'];
   var HEADS = ['Office expenses', 'Travel and conveyance', 'Freight and cartage', 'Repairs and maintenance', 'Printing and stationery', 'Postage and courier', 'Tea and refreshments',
-    'Staff welfare', 'Electricity', 'Telephone and internet', 'Rent', 'Salary and wages', 'Advance to staff', 'Purchase', 'Cleaning', 'Fuel', 'Miscellaneous'];
+    'Employee welfare', 'Electricity', 'Telephone and internet', 'Rent', 'Salary and wages', 'Advance to employee', 'Purchase', 'Cleaning', 'Fuel', 'Miscellaneous'];
   var EARN = ['Basic salary', 'House rent allowance (HRA)', 'Conveyance allowance', 'Special allowance'], DED = ['Provident fund (PF)', 'ESI', 'Professional tax', 'TDS (income tax)'];
   var ACCENTS = ['#0B3B5B', '#1D4ED8', '#047857', '#B45309', '#9D174D', '#334155'];
   var P = {
