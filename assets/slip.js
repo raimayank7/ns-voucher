@@ -815,9 +815,11 @@
   function fileName() {
     return NAMES[type] + ' ' + (type === 'salary' ? month(doc.month) + ' ' : type === 'rent' ? month(doc.from) + (doc.to && doc.to !== doc.from ? ' to ' + month(doc.to) : '') + ' ' : '') + (doc.no || '') + (doc.buyer.name ? ' - ' + doc.buyer.name : '');
   }
+  var ONENOS = new URLSearchParams(location.search).get('nos') || '';   /* bill numbers from Print many vouchers, read before the address is tidied */
   function printAll(r, asPdf) {
     return NSStore.list('doc').then(function (all) {
-      var list = all.filter(function (x) { return x.type === type && (x.date || '') >= r[0] && (x.date || '') <= (r[1] || r[0]); }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || String(a.no || '').localeCompare(String(b.no || '')); });
+      var pick = NS.noPick && NS.noPick(ONENOS) || function () { return true; };   /* bill numbers chosen in Print many vouchers */
+      var list = all.filter(function (x) { return x.type === type && pick(x.no) && (x.date || '') >= r[0] && (x.date || '') <= (r[1] || r[0]); }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || String(a.no || '').localeCompare(String(b.no || '')); });
       if (!list.length) { NS.toast(t('conv.none'), 'bad'); return; }
       return paList(list, asPdf, NAMES[type] + ' ' + r[0] + ' to ' + (r[1] || r[0]));
     });
