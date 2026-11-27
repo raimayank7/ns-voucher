@@ -722,7 +722,7 @@
     }).catch(function (e) { if (e.message !== 'cancel') NS.toast(t('nosave', { e: e.message }), 'bad'); throw e; });
   }
   function setStatus() {
-    NS.docNav && NS.docNav(root, { current: function () { return editingId; }, open: function (r) { openDoc(r); }, list: openHistory,
+    NS.docNav && NS.docNav(root, { current: function () { return editingId; }, open: function (r) { openDoc(r); }, list: openHistory, check: validate, copy: function (r) { openDoc(r, true); }, example: function () { var was = JSON.stringify(doc); NS.mkExample(doc, type); buildEditor(); fillForm(); draw(); return function () { doc = JSON.parse(was); buildEditor(); fillForm(); draw(); }; }, 
       mine: function (d) { var me = key(doc.seller && doc.seller.name); return d.type === type && (!me || !d.seller || key(d.seller.name) === me); } });
     var st = $('#tool-status', root); if (st) st.textContent = editingId ? tw('st.edit', { no: doc.no }) : tw('st.new');
     /* shared folder mode: another computer has this bill open right now */
@@ -919,8 +919,10 @@
       b.addEventListener('click', function () {
         var a = b.getAttribute('data-do');
         if (a === 'save') save().then(function () { NS.vtAfterSave(NS.vtCfg(NS.cfgFor(CFG, doc.seller), type, '', doc.vt), printDoc, shareDoc); }).catch(function () {});
-        else if (a === 'print') printDoc();
-        else if (a === 'share') shareDoc();
+        else if (a === 'print' || a === 'share') {   /* makers-better: Print and Share save first (checks + a number that is never given twice), like the App; an empty slip never prints (owner 27 Nov) */
+          var go = a === 'print' ? printDoc : shareDoc;
+          if (sums(doc).total) save().then(go, function () {}); else NS.toast(NS.t('mk.empty'), 'bad');
+        }
         else if (a === 'new') { if (!editingId && sums(doc).total && !NS.okSync(tw('c.new'))) return; startNew(); }
         else if (a === 'history') openHistory();
       });
