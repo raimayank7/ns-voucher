@@ -8,11 +8,11 @@
 
   /* prefix = number series; paper = default paper; papers = allowed sizes; copy = Original / Office copy labels */
   var TYPES = {
-    receipt: { prefix: 'RCT', title: 'PAYMENT RECEIPT', kinds: ['pay', 'adv', 'ref'], paper: 'a5', papers: ['a4', 'a5', 'th80', 'th58'], copy: true, party: 'party' },
-    voucher: { prefix: 'PV', title: 'PAYMENT VOUCHER', paper: 'a5', papers: ['a4', 'a5'], party: 'party', buying: true },
-    rent: { prefix: 'RR', title: 'RENT RECEIPT', paper: 'a4', papers: ['a4'] },
-    salary: { prefix: 'SAL', title: 'SALARY SLIP', paper: 'a4', papers: ['a4', 'a5'] },
-    petty: { prefix: 'PCB', title: 'PETTY CASH BOOK', paper: 'a4', papers: ['a4'] }
+    receipt: { prefix: 'RCT', title: 'PAYMENT RECEIPT', kinds: ['pay', 'adv', 'ref'], paper: 'a5', papers: NS.PAPER_ALL, copy: true, party: 'party' },
+    voucher: { prefix: 'PV', title: 'PAYMENT VOUCHER', paper: 'a5', papers: NS.PAPER_ALL, party: 'party', buying: true },
+    rent: { prefix: 'RR', title: 'RENT RECEIPT', paper: 'a4', papers: NS.PAPER_ALL },
+    salary: { prefix: 'SAL', title: 'SALARY SLIP', paper: 'a4', papers: NS.PAPER_ALL },
+    petty: { prefix: 'PCB', title: 'PETTY CASH BOOK', paper: 'a4', papers: NS.PAPER_ALL }
   };
   /* TDS sections under the Income-tax Act, 2025 (in force 1 Apr 2026), with the old 1961 section people know; suggestions only, the user types the final text */
   var TDSSEC = ['393(1) Sl. 6(i) (old 194C) contractors', '393(1) Sl. 6(iii) (old 194J) professional or technical fees', '393(1) Sl. 2 (old 194I) rent', '393(1) Sl. 1(ii) (old 194H) commission or brokerage', '393(1) Sl. 8(ii) (old 194Q) purchase of goods'];
@@ -142,7 +142,7 @@
     return card(t('lg.notes'), '<div class="fg">' +
       (type === 'petty' || type === 'salary' ? '' : field('d-notes', t('l.notes'), { type: 'textarea', wide: true })) +
       (T.copy ? field('d-copies', t('l.copies'), { type: 'select', opts: [['1', t('cps.1')], ['2', t('s.cps2')]], hint: t('s.h.copies') }) : '') +
-      (T.papers.length > 1 ? field('d-paper', t('l.paper'), { type: 'select', opts: T.papers.map(function (k) { return [k, t('pp.' + k)]; }) }) : '') +
+      (T.papers.length > 1 ? field('d-paper', t('l.paper'), { type: 'select', opts: T.papers.map(function (k) { return [k, NS.ppName(k)]; }) }) : '') +
       NS.designField('d-design') +
       '<div class="f"><span class="lbl" id="acc-lbl">' + esc(t('l.colour')) + '</span><div class="swatches" role="radiogroup" aria-labelledby="acc-lbl">' + ACCENTS.map(function (c, i) { return '<button type="button" role="radio" class="sw" data-accent="' + c + '" style="--c:' + c + '" aria-label="' + esc(t('colour.n', { n: i + 1 })) + '"></button>'; }).join('') + '</div></div>' +
       '<p class="hint wide print-note">' + esc(tw(type === 'salary' ? 'print.ens' : 'print.en')) + '</p></div>');   /* a salary slip is read by the employee, not a customer (round C) */
@@ -495,8 +495,12 @@
   }
 
   /* ---------- preview (English, like the printout) ---------- */
+  function rollOn(d) { return /^th/.test((d || doc || {}).paper || ''); }
   function head(d, title, sub) {
     var s = d.seller;
+    if (rollOn(d)) return (s.logo ? '<img class="logo" src="' + s.logo + '" alt="">' : '') + '<h2>' + (s.name ? esc(s.name) : '<span class="ph">' + (type === 'rent' ? 'Landlord’s name' : 'Your business name') + '</span>') + '</h2>' + (s.addr ? '<p>' + esc(s.addr).replace(/\n/g, '<br>') + '</p>' : '') +
+      (s.gstin ? '<p>' + P.gstin + ': <b class="mono">' + esc(s.gstin) + '</b></p>' : '') + (s.pan ? '<p>' + P.pan + ': <b class="mono">' + esc(s.pan) + '</b></p>' : '') + (s.phone ? '<p>' + P.ph + ': ' + esc(s.phone) + '</p>' : '') +
+      '<p class="dt">' + title + '</p>' + (sub ? '<p class="copy">' + sub + '</p>' : '');
     return '<header class="sh-top"><div class="sh-from">' + (s.logo ? '<img class="logo" src="' + s.logo + '" alt="">' : '') +
       '<div><h2>' + (s.name ? esc(s.name) : '<span class="ph">' + (type === 'rent' ? 'Landlord’s name' : 'Your business name') + '</span>') + '</h2>' +
       (s.addr ? '<p>' + esc(s.addr).replace(/\n/g, '<br>') + '</p>' : '') +
@@ -506,18 +510,19 @@
   }
   function meta(pairs) {
     pairs = pairs.filter(function (p) { return p[1]; });
+    if (rollOn()) return pairs.length ? '<table class="kv">' + pairs.map(function (p) { return '<tr><th>' + p[0] + '</th><td>' + p[1] + '</td></tr>'; }).join('') + '</table>' : '';
     var h = '';
     for (var i = 0; i < pairs.length; i += 2) h += '<tr><th>' + pairs[i][0] + '</th><td' + (pairs[i + 1] ? '' : ' colspan="3"') + '>' + pairs[i][1] + '</td>' + (pairs[i + 1] ? '<th>' + pairs[i + 1][0] + '</th><td>' + pairs[i + 1][1] + '</td>' : '') + '</tr>';
     return h ? '<table class="meta">' + h + '</table>' : '';
   }
-  function signbox(top, bottom, img) { return '<div class="signbox">' + (top ? '<p>' + top + '</p>' : '') + (img ? '<img src="' + img + '" alt="">' : '<div class="sp"></div>') + '<p>' + bottom + '</p></div>'; }
+  function signbox(top, bottom, img) { if (rollOn()) return (top ? '<p class="nt1">' + top + '</p>' : '') + '<p class="nt1">' + bottom + '</p>'; return '<div class="signbox">' + (top ? '<p>' + top + '</p>' : '') + (img ? '<img src="' + img + '" alt="">' : '<div class="sp"></div>') + '<p>' + bottom + '</p></div>'; }
   function stampBox(on) { return on ? '<div class="rstamp">' + P.stamp + '</div>' : ''; }
   function made() { return NS.creditLine('made'); }
   function payLine(d) {
     var m = P[MODEP[d.mode]] || P.other;
     return P.by + ' ' + m + (d.ref ? ' ' + (d.mode === 'cheque' ? 'no. ' : 'ref. ') + '<span class="mono">' + esc(d.ref) + '</span>' : '') + (d.refDate ? ' ' + P.dated + ' ' + NS.fmtDate(d.refDate) : '') + (d.bank ? ' ' + P.drawn + ' ' + esc(d.bank) : '');
   }
-  function sheetOpen(d, extra) { return '<div class="sh slip ' + type + ' d-' + esc(d.design || 'classic') + (d.paper === 'a5' ? ' a5' : '') + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">' + (d.cancelled ? '<div class="stamp cx-stamp">CANCELLED</div>' : ''); }   /* A-3 */
+  function sheetOpen(d, extra) { if (rollOn(d)) return '<div class="sh th ' + esc(d.paper) + ' slip ' + type + ' roll" lang="en-IN" dir="ltr">' + (d.cancelled ? '<p class="cx-line">*** CANCELLED ***</p>' : ''); return '<div class="sh slip ' + type + ' d-' + esc(d.design || 'classic') + NS.paperClass(d.paper) + (extra || '') + '" style="--ac:' + esc(d.accent) + '" lang="en-IN" dir="ltr">' + (d.cancelled ? '<div class="stamp cx-stamp">CANCELLED</div>' : ''); }   /* A-3 */
 
   function receiptHtml(d, label) {
     var o = sums(d), s = d.seller, name = d.buyer.name ? '<b>' + esc(d.buyer.name) + '</b>' : '<span class="ph">customer name</span>';
@@ -608,9 +613,9 @@
     if (!sheet) return;
     var d = doc, o = sums(d);
     var labels = T.copy && all === true && +d.copies > 1 ? ['orig', 'office'] : [T.copy && +d.copies > 1 ? 'orig' : ''];
-    sheet.innerHTML = labels.map(function (l) { return sheetHtml(d, l); }).join('');
+    sheet.innerHTML = labels.map(function (l) { return sheetHtml(d, l); }).join(''); NS.rollTables(sheet);
     var st = $('#ns-page') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'ns-page' }));
-    st.textContent = '@media print{@page{' + ({ a5: 'size:A5;margin:0', th80: 'size:80mm 297mm;margin:0', th58: 'size:58mm 297mm;margin:0' }[d.paper] || 'size:A4;margin:0') + '}}';
+    st.textContent = '@media print{@page{' + NS.paperCss(d.paper) + '}}';
     var es = $('#ed-sums', root);
     if (es) es.innerHTML = type === 'salary' ? '<span>' + esc(t('s.sum.gross', { v: NS.money(o.gross) })) + '</span><span>' + esc(t('s.sum.ded', { v: NS.money(o.ded) })) + '</span><b>' + esc(t('s.sum.net', { v: NS.money(o.total) })) + '</b>' +
         (o.gross && num((d.earn[0] || {}).amt) < o.gross / 2 ? '<span class="warn">' + esc(t('s.w.wages')) + '</span>' : '')
@@ -869,6 +874,9 @@
     if (dr && dr.id && /[?&]new=1/.test(location.search)) dr = null;   /* the App's "New ..." (?new=1) starts a fresh document, not the saved one last opened */
     if (dr) { doc = Object.assign(blank(), dr.doc); editingId = dr.id || null; }
     function render() { buildEditor(); fillForm(); draw(); setStatus(); labelButtons(); if (histOpen) renderHistory(); series(); }
+    /* the App's Print designs screen draws this maker's paper from a document made up in the App (printdesign.js), nothing is saved */
+    window.NSDocOut = { id: function () { return editingId; }, nodes: function () { return $$('.sh', sheet); }, paper: function () { return doc.paper; },
+      show: function (d) { doc = Object.assign(blank(), JSON.parse(JSON.stringify(d))); delete doc.total; editingId = d.id || '(preview)'; draw(); return $$('.sh', sheet); }, file: fileName, title: function () { return doc.no || ''; }, text: function () { return ''; }, phone: function () { return doc.buyer && doc.buyer.phone; } };
     /* "Change number series" under the number box */
     function series() { NS.seriesLink($('#d-no', root), { type: type, biz: function () { return doc.seller; }, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } });
       NS.subPick($('#d-no', root), { type: type, cfg: function () { return NS.cfgFor(CFG, doc.seller); }, get: function () { return doc.vt || ''; }, saved: function () { return !!editingId; },   /* A-7 */
@@ -885,10 +893,12 @@
       var pall = new URLSearchParams(location.search).get('printall');
       if (pall && !NS.leaving) { var asPdf = new URLSearchParams(location.search).get('pdf') === '1'; history.replaceState(null, '', location.pathname + location.hash); return printAll(pall.split(','), asPdf); }   /* &pdf=1: one PDF (pdftools.js) */
       /* ?open=<id>: NSBiz opens a saved receipt or voucher here to print or share */
-      var open = new URLSearchParams(location.search).get('open');
+      var qq = new URLSearchParams(location.search), open = qq.get('open'), ovd = qq.get('dz'), ovp = qq.get('pz'), ovc = +qq.get('cn') || 0;
       if (open && !NS.leaving) {
         history.replaceState(null, '', location.pathname + location.hash);
-        return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) { openDoc(rec, false); render(); } }).then(function () { if (NS.autoPrint && NS.autoPrint()) setTimeout(printDoc, 900); }).catch(function () {});
+        return NSStore.get('doc', open).then(function (rec) { if (rec && rec.type === type) {
+          if ((ovd && NS.DESIGNS.indexOf(ovd) >= 0) || NS.paperRx.test(ovp || '') || ovc) { rec = Object.assign({}, rec); if (ovd && NS.DESIGNS.indexOf(ovd) >= 0) rec.design = ovd; if (NS.paperRx.test(ovp || '')) rec.paper = ovp; if (ovc) rec.copies = Math.min(3, ovc); }   /* the App's Print box: for this one print only */
+          openDoc(rec, false); render(); } }).then(function () { if (NS.autoPrint && NS.autoPrint()) setTimeout(printDoc, 900); }).catch(function () {});
       }
       /* a draft of a saved record that no longer exists (deleted elsewhere) starts fresh; a new one takes a saved business */
       return NS.liveDraft(dr).then(function (live) {
