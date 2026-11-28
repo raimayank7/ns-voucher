@@ -877,6 +877,17 @@
     /* the App's Print designs screen draws this maker's paper from a document made up in the App (printdesign.js), nothing is saved */
     window.NSDocOut = { id: function () { return editingId; }, nodes: function () { return $$('.sh', sheet); }, paper: function () { return doc.paper; },
       show: function (d) { doc = Object.assign(blank(), JSON.parse(JSON.stringify(d))); delete doc.total; editingId = d.id || '(preview)'; draw(); return $$('.sh', sheet); }, file: fileName, title: function () { return doc.no || ''; }, text: function () { return ''; }, phone: function () { return doc.buyer && doc.buyer.phone; } };
+    /* the bulk payslip screen (salbulk.js) draws each employee's slip with this maker's own printed sheet (byof-salary, 28 Nov 2026) */
+    if (type === 'salary') window.NSSlipOut = { blank: blank, html: function (d) { return sheetHtml(Object.assign(blank(), d), ''); }, sums: sums, ptFor: ptFor, tdsMonth: tdsMonth, month: month };
+    /* byof2-receipts: the bulk receipts screen (rcptbulk.js) draws each receipt with this printed sheet and counts on in this site's series */
+    if (type === 'receipt') window.NSRcptOut = { kind: 'pay', prefix: T.prefix, paper: T.paper,
+      html: function (d, label) { var b = blank(); d = Object.assign(b, d); d.seller = Object.assign(b.seller, d.seller || {}); d.buyer = Object.assign(b.buyer, d.buyer || {}); return sheetHtml(d, label || ''); },
+      next: function (seller, date) {
+        var keep = doc, o; doc = blank(); doc.seller = Object.assign(doc.seller, seller || {}); doc.date = date || NS.today(); doc.kind = 'pay';
+        try { o = nxOpts(); } finally { doc = keep; }
+        o.skip = null;
+        return NSStore.list('doc').then(function (all) { var x = NS.nextNo(all, o); x.used = all.filter(function (d) { return d.type === type && d.no; }).map(function (d) { return d.no; }); return x; });
+      } };
     /* "Change number series" under the number box */
     function series() { NS.seriesLink($('#d-no', root), { type: type, biz: function () { return doc.seller; }, def: T.prefix, name: function () { return t('Doc.' + type); }, apply: function (c) { CFG = c || {}; if (!editingId) suggestNumber(true); } });
       NS.subPick($('#d-no', root), { type: type, cfg: function () { return NS.cfgFor(CFG, doc.seller); }, get: function () { return doc.vt || ''; }, saved: function () { return !!editingId; },   /* A-7 */
